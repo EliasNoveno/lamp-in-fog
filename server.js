@@ -2,11 +2,12 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcrypt');
 const https = require('https');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use(express.static(__dirname));
 
 const db = new sqlite3.Database('database.sqlite');
@@ -32,7 +33,9 @@ db.serialize(() => {
         pendingId TEXT,
         fileName TEXT,
         fileData TEXT,
-        edited INTEGER DEFAULT 0
+        fileType TEXT,
+        edited INTEGER DEFAULT 0,
+        hashtags TEXT DEFAULT '[]'
     )`);
     
     db.run(`CREATE TABLE IF NOT EXISTS pendingPhotos (
@@ -68,15 +71,22 @@ db.serialize(() => {
         read INTEGER DEFAULT 0
     )`);
     
+    db.run(`CREATE TABLE IF NOT EXISTS blacklists (
+        username TEXT PRIMARY KEY,
+        blocked TEXT DEFAULT '[]'
+    )`);
+    
     db.get("SELECT COUNT(*) as count FROM users", (err, row) => {
         if (row && row.count === 0) {
             const hashedPassword = bcrypt.hashSync('hell_yeah', 10);
             db.run(`INSERT INTO users (username, password, description, isAdmin) VALUES (?, ?, ?, ?)`,
                 ['Edd_Leon_CAt', hashedPassword, 'the primordial admin', 1]);
-            console.log('✅ admin created');
+            console.log('✅ primordial admin created');
         }
     });
 });
+
+// ========== API РОУТЫ ==========
 
 app.get('/api/users', (req, res) => {
     db.all("SELECT username, description, isAdmin, banned, friends FROM users", (err, rows) => {
@@ -136,18 +146,36 @@ app.post('/api/login', (req, res) => {
     });
 });
 
+app.post('/api/changePassword', async (req, res) => {
+    const { username, oldPassword, newPassword } = req.body;
+    db.get("SELECT * FROM users WHERE username = ?", [username], async (err, user) => {
+        if (err || !user) return res.status(404).json({ error: 'user not found' });
+        const valid = await bcrypt.compare(oldPassword, user.password);
+        if (!valid) return res.status(401).json({ error: 'wrong password' });
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        db.run("UPDATE users SET password = ? WHERE username = ?", [hashedPassword, username], (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true });
+        });
+    });
+});
+
 app.get('/api/posts', (req, res) => {
     db.all("SELECT * FROM posts ORDER BY time DESC", (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
+        const posts = rows.map(p => ({
+            ...p,
+            hashtags: p.hashtags ? JSON.parse(p.hashtags) : []
+        }));
+        res.json(posts);
     });
 });
 
 app.post('/api/posts', (req, res) => {
-    const { author, content, time, isPoem, photo, pendingApproval, pendingId, fileName, fileData, edited } = req.body;
-    db.run(`INSERT INTO posts (author, content, time, isPoem, photo, pendingApproval, pendingId, fileName, fileData, edited)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [author, content || '', time, isPoem ? 1 : 0, photo, pendingApproval ? 1 : 0, pendingId, fileName, fileData, edited ? 1 : 0],
+    const { author, content, time, isPoem, photo, pendingApproval, pendingId, fileName, fileData, fileType, edited, hashtags } = req.body;
+    db.run(`INSERT INTO posts (author, content, time, isPoem, photo, pendingApproval, pendingId, fileName, fileData, fileType, edited, hashtags)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [author, content || '', time, isPoem ? 1 : 0, photo, pendingApproval ? 1 : 0, pendingId, fileName, fileData, fileType, edited ? 1 : 0, JSON.stringify(hashtags || [])],
         function(err) {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ id: this.lastID });
@@ -155,11 +183,12 @@ app.post('/api/posts', (req, res) => {
 });
 
 app.put('/api/posts/:id', (req, res) => {
-    const { content } = req.body;
-    db.run("UPDATE posts SET content = ?, edited = 1 WHERE id = ?", [content, req.params.id], (err) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ success: true });
-    });
+    const { content, hashtags } = req.body;
+    db.run(`UPDATE posts SET content = ?, hashtags = ?, edited = 1 WHERE id = ?`,
+        [content, JSON.stringify(hashtags || []), req.params.id], (err) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json({ success: true });
+        });
 });
 
 app.delete('/api/posts/:id', (req, res) => {
@@ -249,7 +278,14 @@ app.delete('/api/comments/:id', (req, res) => {
 app.get('/api/privateMessages', (req, res) => {
     db.all("SELECT * FROM privateMessages ORDER BY time ASC", (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
+        const messages = {};
+        rows.forEach(msg => {
+            if (!messages[msg.toUser]) messages[msg.toUser] = [];
+            if (!messages[msg.fromUser]) messages[msg.fromUser] = [];
+            messages[msg.toUser].push(msg);
+            messages[msg.fromUser].push(msg);
+        });
+        res.json(messages);
     });
 });
 
@@ -260,6 +296,25 @@ app.post('/api/privateMessages', (req, res) => {
             if (err) return res.status(500).json({ error: err.message });
             res.json({ success: true });
         });
+});
+
+app.get('/api/blacklists', (req, res) => {
+    db.all("SELECT * FROM blacklists", (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        const blacklists = {};
+        rows.forEach(row => {
+            blacklists[row.username] = JSON.parse(row.blocked);
+        });
+        res.json(blacklists);
+    });
+});
+
+app.post('/api/blacklists', (req, res) => {
+    const { username, blacklist } = req.body;
+    db.run(`INSERT OR REPLACE INTO blacklists (username, blocked) VALUES (?, ?)`, [username, JSON.stringify(blacklist)], (err) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ success: true });
+    });
 });
 
 app.put('/api/users/:username', (req, res) => {
@@ -285,10 +340,16 @@ app.delete('/api/users/:username', (req, res) => {
     db.run("DELETE FROM notifications WHERE targetUser = ? OR fromUser = ?", [username, username], () => {});
     db.run("DELETE FROM pendingPhotos WHERE author = ?", [username], () => {});
     db.run("DELETE FROM privateMessages WHERE fromUser = ? OR toUser = ?", [username, username], () => {});
+    db.run("DELETE FROM blacklists WHERE username = ?", [username], () => {});
     db.run("DELETE FROM users WHERE username = ?", [username], (err) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ success: true });
     });
+});
+
+// ========== ГЛАВНЫЙ МАРШРУТ ==========
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/index.html');
 });
 
 const myUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
