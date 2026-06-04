@@ -1,0 +1,2016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>lamp in fog</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            font-family: monospace;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            position: relative;
+        }
+        .container {
+            width: 100%;
+            max-width: 700px;
+            padding: 20px;
+        }
+        .top-menu {
+            position: sticky;
+            top: 0;
+            background-color: black;
+            border-top: 1px solid #333;
+            border-bottom: 1px solid #333;
+            padding: 10px 0;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            z-index: 10;
+        }
+        .top-menu .site-title {
+            color: white;
+            font-size: 1.2em;
+            cursor: pointer;
+            text-transform: lowercase;
+        }
+        .menu-buttons {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+        .menu-buttons button {
+            background: transparent;
+            color: #888;
+            border: none;
+            padding: 4px 6px;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 0.75em;
+            text-transform: lowercase;
+            transition: all 0.2s;
+            margin: 0;
+            line-height: 1;
+        }
+        .menu-buttons button:not(:last-child)::after {
+            content: '|';
+            margin-left: 8px;
+            margin-right: 0;
+            color: #444;
+        }
+        .menu-buttons button:hover {
+            color: white;
+        }
+        .menu-buttons .active-btn {
+            color: white;
+            background: #1a1a1a;
+        }
+        .search-area {
+            display: flex;
+            align-items: center;
+            margin-left: auto;
+            margin-right: 15px;
+        }
+        .search-input {
+            background: #111;
+            border: 1px solid #444;
+            color: #888;
+            padding: 4px 8px;
+            font-family: monospace;
+            font-size: 0.7em;
+            width: 120px;
+            transition: all 0.2s;
+        }
+        .search-input:focus {
+            outline: none;
+            border-color: #888;
+            color: white;
+            width: 160px;
+        }
+        .search-input::placeholder {
+            color: #444;
+            text-transform: lowercase;
+        }
+        .auth-area {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+        .auth-area button {
+            background: transparent;
+            color: #888;
+            border: none;
+            padding: 4px 6px;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 0.8em;
+            text-transform: lowercase;
+        }
+        .auth-area button:hover {
+            color: white;
+        }
+        .auth-area .logout-btn {
+            display: none;
+        }
+        .auth-area .logged-user {
+            color: #aaa;
+            font-size: 0.75em;
+            margin-right: 6px;
+            cursor: pointer;
+            text-decoration: underline;
+            text-transform: lowercase;
+        }
+        .auth-area .logged-user:hover {
+            color: white;
+        }
+        .notification-icon {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #111;
+            border: 1px solid #444;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 24px;
+            z-index: 1000;
+            transition: all 0.2s;
+        }
+        .notification-icon:hover {
+            border-color: white;
+            background: #222;
+        }
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #f00;
+            color: white;
+            font-size: 10px;
+            padding: 2px 5px;
+            border-radius: 10px;
+            min-width: 16px;
+            text-align: center;
+        }
+        .notification-panel {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            width: 300px;
+            max-height: 400px;
+            background: #0a0a0a;
+            border: 1px solid #444;
+            overflow-y: auto;
+            z-index: 1001;
+            display: none;
+        }
+        .notification-panel.show {
+            display: block;
+        }
+        .notification-item {
+            padding: 10px;
+            border-bottom: 1px solid #333;
+            color: #aaa;
+            font-size: 0.8em;
+            cursor: pointer;
+        }
+        .notification-item:hover {
+            background: #1a1a1a;
+            color: white;
+        }
+        .notification-item.unread {
+            color: white;
+            background: #1a1a1a;
+        }
+        .post-form {
+            margin: 20px 0;
+        }
+        .post-form textarea {
+            width: 100%;
+            background: #111;
+            border: 1px solid #444;
+            color: white;
+            padding: 10px;
+            font-family: monospace;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        .post-form input[type="text"] {
+            background: #111;
+            border: 1px solid #444;
+            color: #888;
+            padding: 6px;
+            font-family: monospace;
+            font-size: 0.8em;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 8px;
+        }
+        .post-form input[type="text"]:focus {
+            outline: none;
+            border-color: #888;
+            color: white;
+        }
+        .post-form input[type="text"]::placeholder {
+            color: #444;
+        }
+        .post-form input[type="file"] {
+            color: #888;
+            margin: 8px 0;
+        }
+        .post-form button {
+            background: transparent;
+            color: white;
+            border: 1px solid #888;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-family: monospace;
+            margin-top: 8px;
+            text-transform: lowercase;
+        }
+        .post-form button:hover {
+            border-color: white;
+        }
+        .post {
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            margin: 12px 0;
+            position: relative;
+        }
+        .post .author {
+            color: #aaa;
+            font-size: 0.8em;
+            margin-bottom: 6px;
+            cursor: pointer;
+            text-transform: lowercase;
+        }
+        .post .author:hover {
+            color: white;
+        }
+        .post .content {
+            white-space: pre-wrap;
+        }
+        .post .edited-badge {
+            color: #555;
+            font-size: 0.7em;
+            margin-left: 8px;
+        }
+        .hashtags {
+            margin-top: 6px;
+            margin-bottom: 6px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .hashtag {
+            color: #888;
+            font-size: 0.7em;
+            cursor: pointer;
+            text-transform: lowercase;
+            background: #1a1a1a;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        .hashtag:hover {
+            color: white;
+            background: #2a2a2a;
+        }
+        .post-actions {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        .post-actions button {
+            background: transparent;
+            color: #666;
+            border: none;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 0.7em;
+        }
+        .post-actions button:hover {
+            color: white;
+        }
+        .post .attachment {
+            margin-top: 10px;
+        }
+        .post .attachment a {
+            color: #888;
+            text-decoration: none;
+            text-transform: lowercase;
+        }
+        .post .attachment a:hover {
+            color: white;
+        }
+        .post .delete-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: transparent;
+            color: #555;
+            border: none;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 0.7em;
+        }
+        .post .delete-btn:hover {
+            color: #f00;
+        }
+        .comments-section {
+            margin-top: 12px;
+            border-top: 1px solid #333;
+            padding-top: 10px;
+        }
+        .comments-toggle {
+            background: transparent;
+            color: #666;
+            border: none;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 0.7em;
+            margin-bottom: 8px;
+        }
+        .comments-toggle:hover {
+            color: white;
+        }
+        .comment {
+            margin: 8px 0;
+            padding-left: 12px;
+            border-left: 2px solid #444;
+            font-size: 0.85em;
+        }
+        .comment-author {
+            color: #888;
+            cursor: pointer;
+        }
+        .comment-author:hover {
+            color: white;
+        }
+        .comment-content {
+            margin-top: 4px;
+        }
+        .comment-edited {
+            color: #555;
+            font-size: 0.6em;
+            margin-left: 6px;
+        }
+        .add-comment {
+            margin-top: 8px;
+            display: flex;
+            gap: 8px;
+        }
+        .add-comment input {
+            flex: 1;
+            background: #111;
+            border: 1px solid #444;
+            color: white;
+            padding: 6px;
+            font-family: monospace;
+            font-size: 0.8em;
+        }
+        .add-comment button {
+            background: transparent;
+            color: #888;
+            border: 1px solid #888;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 0.7em;
+        }
+        .float {
+            position: fixed;
+            animation: floatUp 2s ease-out forwards;
+            pointer-events: none;
+            font-size: 1.5em;
+            color: white;
+            z-index: 9999;
+        }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) rotate(0deg); }
+            100% { opacity: 0; transform: translateY(-150px) rotate(360deg); }
+        }
+        .user-list {
+            margin-top: 20px;
+        }
+        .user-item {
+            padding: 6px 0;
+            color: #aaa;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .user-item:hover {
+            color: white;
+        }
+        .user-item .admin-badge {
+            color: #888;
+            font-size: 0.7em;
+            margin-left: 10px;
+            text-transform: lowercase;
+        }
+        .friend-item {
+            color: #aaa;
+            padding: 3px 0;
+            cursor: pointer;
+            text-transform: lowercase;
+        }
+        .friend-item:hover {
+            color: white;
+        }
+        .pending-photos {
+            border: 1px solid #444;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .pending-photos h4 {
+            color: #888;
+            margin-top: 0;
+            text-transform: lowercase;
+        }
+        .pending-item {
+            margin: 8px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .pending-item img {
+            max-width: 200px;
+            max-height: 200px;
+        }
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 8px 0;
+            color: #aaa;
+            font-size: 0.9em;
+        }
+        .checkbox-label label {
+            text-transform: lowercase;
+        }
+        .delete-account-btn, .change-password-btn {
+            background: transparent;
+            color: white;
+            border: 1px solid #888;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 0.8em;
+            margin: 4px;
+            text-transform: lowercase;
+        }
+        .delete-account-btn:hover, .change-password-btn:hover {
+            border-color: white;
+        }
+        .loading {
+            color: #888;
+            text-align: center;
+            padding: 40px;
+            text-transform: lowercase;
+        }
+        audio {
+            max-width: 100%;
+            margin-top: 8px;
+        }
+        h2, h3, h4 {
+            text-transform: lowercase;
+        }
+        button {
+            text-transform: lowercase;
+        }
+        p {
+            text-transform: lowercase;
+        }
+        .content {
+            text-transform: none;
+        }
+        a {
+            text-transform: lowercase;
+        }
+        .profile-stats {
+            display: flex;
+            gap: 15px;
+            margin: 10px 0;
+            color: #888;
+            font-size: 0.8em;
+            flex-wrap: wrap;
+        }
+        .profile-stats span {
+            cursor: pointer;
+        }
+        .profile-stats span:hover {
+            color: white;
+        }
+        .pm-container {
+            margin: 15px 0;
+            border: 1px solid #333;
+            padding: 10px;
+        }
+        .pm-message {
+            padding: 8px;
+            border-bottom: 1px solid #333;
+            font-size: 0.8em;
+        }
+        .pm-message.sent {
+            color: #aaa;
+        }
+        .pm-message.received {
+            color: #ccc;
+        }
+        hr {
+            border-color: #333;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="top-menu" id="topMenu">
+        <span class="site-title" onclick="showFeed()">lamp in fog</span>
+        <div class="menu-buttons" id="menuButtons" style="display:none;">
+            <button onclick="showFeed()" class="active-btn">feed</button>
+            <button onclick="showPoems()">poems</button>
+            <button onclick="showPosts()">posts</button>
+            <button onclick="showPhotos()">photos</button>
+            <button onclick="showMusic()">music</button>
+            <button onclick="showFiles()">files</button>
+            <button onclick="showUserList()">users</button>
+            <button onclick="showStatistics()">statistics</button>
+        </div>
+        <div class="search-area" id="searchArea" style="display:none;">
+            <input type="text" class="search-input" id="searchInput" placeholder="find smth..." onkeyup="handleSearch(event)">
+        </div>
+        <div class="auth-area" id="authArea">
+            <button id="btnLogin" style="display:inline-block;">log in</button>
+            <button id="btnRegister" style="display:inline-block;">registration</button>
+            <span class="logged-user" id="loggedUser" style="display:none;" onclick="showProfile(currentUser?.username)"></span>
+            <button class="logout-btn" id="btnLogout" style="display:none;">log out</button>
+        </div>
+    </div>
+
+    <div id="content"><div class="loading">loading... :&gt;</div></div>
+</div>
+
+<div class="notification-icon" id="notificationIcon" style="display:none;">
+    ☁
+    <span class="notification-badge" id="notificationBadge" style="display:none;">0</span>
+</div>
+<div class="notification-panel" id="notificationPanel"></div>
+
+<script>
+    let currentUser = null;
+    let posts = [];
+    let users = {};
+    let pendingPhotos = [];
+    let notifications = [];
+    let commentsCache = {};
+    let loadingInterval = null;
+    let currentSearchQuery = '';
+    let privateMessages = [];
+    let blacklists = {};
+
+    function floatEmoji(text) {
+        const el = document.createElement('span');
+        el.className = 'float';
+        el.textContent = text;
+        el.style.left = Math.random() * 80 + 10 + '%';
+        el.style.bottom = '20%';
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 2000);
+    }
+
+    function startLoadingEmojis() {
+        if (loadingInterval) clearInterval(loadingInterval);
+        loadingInterval = setInterval(() => {
+            floatEmoji(':>');
+        }, 300);
+    }
+
+    function stopLoadingEmojis() {
+        if (loadingInterval) {
+            clearInterval(loadingInterval);
+            loadingInterval = null;
+        }
+    }
+
+    function spawnLoginEmojis() {
+        const emojis = ['ʕ •ᴥ• ʔ', ':>', 'ʕ •ᴥ• ʔ', ':>', 'ʕ •ᴥ• ʔ', ':>', '｡°✩'];
+        for (let i = 0; i < 6; i++) {
+            setTimeout(() => {
+                floatEmoji(emojis[Math.floor(Math.random() * emojis.length)]);
+            }, i * 200);
+        }
+    }
+
+    function spawnFriendEmoji() {
+        floatEmoji('^•ﻌ•^');
+    }
+
+    function spawnEditEmoji() {
+        const emojis = ['▓', '▒', '░', '◻', '◼', '▮', '▯'];
+        for (let i = 0; i < 5; i++) {
+            setTimeout(() => {
+                floatEmoji(emojis[Math.floor(Math.random() * emojis.length)]);
+            }, i * 100);
+        }
+    }
+
+    function formatDate(ts) {
+        const d = new Date(ts);
+        return d.toLocaleString();
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function extractHashtags(text) {
+        const hashtags = [];
+        const regex = /#([\p{L}\p{N}_]+)/gu;
+        let match;
+        while ((match = regex.exec(text)) !== null) {
+            hashtags.push(match[1]);
+        }
+        return [...new Set(hashtags)];
+    }
+
+    async function loadData() {
+        startLoadingEmojis();
+        try {
+            const [usersRes, postsRes, pendingRes, pmRes, blacklistRes] = await Promise.all([
+                fetch('/api/users'),
+                fetch('/api/posts'),
+                fetch('/api/pendingPhotos'),
+                fetch('/api/privateMessages'),
+                fetch('/api/blacklists')
+            ]);
+            if (!usersRes.ok || !postsRes.ok || !pendingRes.ok) throw new Error('server response not ok');
+            users = await usersRes.json();
+            posts = await postsRes.json();
+            pendingPhotos = await pendingRes.json();
+            if (pmRes.ok) privateMessages = await pmRes.json();
+            if (blacklistRes.ok) blacklists = await blacklistRes.json();
+            
+            if (currentUser) {
+                const notifRes = await fetch(`/api/notifications/${currentUser.username}`);
+                if (notifRes.ok) {
+                    notifications = await notifRes.json();
+                    updateNotificationBadge();
+                }
+            }
+        } catch(e) {
+            console.error('failed to load data', e);
+            renderContent('<p class="loading">failed to connect to server. make sure the backend is running.</p>');
+        } finally {
+            stopLoadingEmojis();
+        }
+    }
+
+    async function loadComments(postId) {
+        if (commentsCache[postId]) return commentsCache[postId];
+        const res = await fetch(`/api/comments/${postId}`);
+        if (res.ok) {
+            const comments = await res.json();
+            commentsCache[postId] = comments;
+            return comments;
+        }
+        return [];
+    }
+
+    async function addComment(postId, content) {
+        if (!currentUser || !content.trim()) return;
+        const res = await fetch('/api/comments', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ postId, author: currentUser.username, content: content.trim() })
+        });
+        if (res.ok) {
+            delete commentsCache[postId];
+            await loadComments(postId);
+            renderCurrentView();
+        }
+    }
+
+    async function editComment(commentId, postId, oldContent) {
+        const newContent = prompt('edit comment:', oldContent);
+        if (!newContent || newContent === oldContent) return;
+        const res = await fetch(`/api/comments/${commentId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ content: newContent, edited: 1 })
+        });
+        if (res.ok) {
+            delete commentsCache[postId];
+            await loadComments(postId);
+            renderCurrentView();
+            spawnEditEmoji();
+        }
+    }
+
+    async function deleteComment(commentId, postId) {
+        const res = await fetch(`/api/comments/${commentId}`, { method: 'DELETE' });
+        if (res.ok) {
+            delete commentsCache[postId];
+            await loadComments(postId);
+            renderCurrentView();
+        }
+    }
+
+    function updateNotificationBadge() {
+        const unreadCount = notifications.filter(n => !n.read).length;
+        const badge = document.getElementById('notificationBadge');
+        if (unreadCount > 0) {
+            badge.textContent = unreadCount;
+            badge.style.display = 'block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    async function loadNotifications() {
+        if (!currentUser) return;
+        const res = await fetch(`/api/notifications/${currentUser.username}`);
+        if (res.ok) {
+            notifications = await res.json();
+            updateNotificationBadge();
+            renderNotificationPanel();
+        }
+    }
+
+    async function markNotificationRead(notifId) {
+        await fetch(`/api/notifications/${notifId}/read`, { method: 'PUT' });
+        await loadNotifications();
+    }
+
+    async function addNotification(targetUser, fromUser, type) {
+        await fetch('/api/notifications', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ targetUser, fromUser, type })
+        });
+        if (currentUser && currentUser.username === targetUser) {
+            await loadNotifications();
+        }
+    }
+
+    function renderNotificationPanel() {
+        const panel = document.getElementById('notificationPanel');
+        if (!panel) return;
+        
+        if (notifications.length === 0) {
+            panel.innerHTML = '<div style="padding:10px;color:#555;">no notifications</div>';
+            return;
+        }
+        
+        panel.innerHTML = notifications.map(n => `
+            <div class="notification-item ${n.read ? '' : 'unread'}" onclick="markNotificationRead(${n.id}); showProfile('${escapeHtml(n.fromUser)}'); document.getElementById('notificationPanel').classList.remove('show')">
+                <strong>${escapeHtml(n.fromUser)}</strong> ${n.type === 'friend' ? 'added you to fog-walkers' : n.type === 'pm' ? 'sent you a message' : ''}
+                <div style="font-size:0.7em;color:#555;">${formatDate(n.time)}</div>
+            </div>
+        `).join('');
+    }
+
+    function renderContent(html) {
+        document.getElementById('content').innerHTML = html;
+    }
+
+    let currentViewCallback = null;
+
+    function renderCurrentView() {
+        if (currentViewCallback) currentViewCallback();
+    }
+
+    function setActiveButton(btn) {
+        if (!btn) return;
+        const buttons = document.querySelectorAll('.menu-buttons button');
+        buttons.forEach(b => b.classList.remove('active-btn'));
+        btn.classList.add('active-btn');
+    }
+
+    function handleSearch(event) {
+        currentSearchQuery = event.target.value.toLowerCase();
+        renderCurrentView();
+    }
+
+    function filterPostsBySearch(postsArray) {
+        if (!currentSearchQuery) return postsArray;
+        return postsArray.filter(p => 
+            p.content.toLowerCase().includes(currentSearchQuery) || 
+            p.author.toLowerCase().includes(currentSearchQuery) ||
+            (p.hashtags && p.hashtags.some(h => h.toLowerCase().includes(currentSearchQuery)))
+        );
+    }
+
+    async function showStatistics() {
+        const buttons = document.querySelectorAll('.menu-buttons button');
+        setActiveButton(buttons[7]);
+        
+        const totalUsers = Object.keys(users).length;
+        const totalPosts = posts.filter(p => !p.pendingApproval).length;
+        const totalPoems = posts.filter(p => p.isPoem === 1 && !p.pendingApproval).length;
+        const totalMusic = posts.filter(p => p.fileData && p.fileName && p.fileName.match(/\.(mp3|wav|ogg|m4a)$/i) && !p.pendingApproval).length;
+        const totalPhotos = posts.filter(p => p.photo && !p.pendingApproval).length;
+        const totalFiles = posts.filter(p => p.fileData && !p.pendingApproval && !p.photo && !p.fileName?.match(/\.(mp3|wav|ogg|m4a)$/i)).length;
+        
+        const html = `
+            <h3>statistics</h3>
+            <div class="profile-stats">
+                <span>👥 users: ${totalUsers}</span>
+                <span>📄 posts: ${totalPosts}</span>
+                <span>✎ poems: ${totalPoems}</span>
+                <span>🎵 music: ${totalMusic}</span>
+                <span>🖼️ photos: ${totalPhotos}</span>
+                <span>📎 files: ${totalFiles}</span>
+            </div>
+            <hr>
+            <h3>top hashtags</h3>
+            <div id="topHashtags"></div>
+        `;
+        renderContent(html);
+        
+        const hashtagCount = {};
+        posts.forEach(p => {
+            if (p.hashtags) {
+                p.hashtags.forEach(h => {
+                    hashtagCount[h] = (hashtagCount[h] || 0) + 1;
+                });
+            }
+        });
+        const topHashtags = Object.entries(hashtagCount).sort((a,b) => b[1] - a[1]).slice(0, 10);
+        const hashtagDiv = document.getElementById('topHashtags');
+        if (topHashtags.length === 0) {
+            hashtagDiv.innerHTML = '<p style="color:#555;">no hashtags yet</p>';
+        } else {
+            hashtagDiv.innerHTML = topHashtags.map(([tag, count]) => 
+                `<div class="hashtag" onclick="searchByHashtag('${escapeHtml(tag)}')">#${escapeHtml(tag)} [${count}]</div>`
+            ).join('');
+        }
+        
+        currentViewCallback = showStatistics;
+    }
+
+    function searchByHashtag(tag) {
+        currentSearchQuery = '#' + tag;
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) searchInput.value = '#' + tag;
+        showFeed();
+    }
+
+    async function showFeed() {
+        const firstBtn = document.querySelector('.menu-buttons button');
+        setActiveButton(firstBtn);
+        
+        let html = '';
+        if (currentUser) {
+            html += `
+                <div class="post-form">
+                    <input type="text" id="postHashtags" placeholder="#hashtags (space separated)">
+                    <textarea id="postContent" rows="4" placeholder="type your post..."></textarea>
+                    <div class="checkbox-label">
+                        <input type="checkbox" id="isPoemCheckbox">
+                        <label>this is a poem</label>
+                    </div>
+                    <input type="file" id="postFile" accept="image/*,audio/*,application/pdf,text/plain,application/zip">
+                    <button id="btnPublish">publish</button>
+                </div>
+            `;
+        }
+        html += '<div id="feedPosts"></div>';
+        renderContent(html);
+
+        if (currentUser) {
+            const publishBtn = document.getElementById('btnPublish');
+            if (publishBtn) publishBtn.onclick = publishPost;
+        }
+        await renderFeedPosts();
+        if (currentUser && currentUser.isAdmin) {
+            renderPendingPhotos();
+        }
+        
+        currentViewCallback = async () => {
+            await renderFeedPosts();
+            if (currentUser && currentUser.isAdmin) renderPendingPhotos();
+        };
+    }
+
+    async function renderFeedPosts() {
+        const feed = document.getElementById('feedPosts');
+        if (!feed) return;
+        feed.innerHTML = '';
+        let visiblePosts = posts.filter(p => !p.pendingApproval);
+        visiblePosts = filterPostsBySearch(visiblePosts);
+        const sorted = [...visiblePosts].sort((a,b) => b.time - a.time);
+        
+        for (const p of sorted) {
+            const comments = await loadComments(p.id);
+            const div = document.createElement('div');
+            div.className = 'post';
+            let attachmentHtml = '';
+            if (p.photo) {
+                attachmentHtml = `<div class="attachment"><img src="${p.photo}" style="max-width:100%;max-height:400px;"></div>`;
+            } else if (p.fileData && p.fileName && p.fileName.match(/\.(mp3|wav|ogg|m4a)$/i)) {
+                attachmentHtml = `<div class="attachment"><audio controls src="${p.fileData}"></audio><div><a href="${p.fileData}" download="${escapeHtml(p.fileName)}">🎵 ${escapeHtml(p.fileName)}</a></div></div>`;
+            } else if (p.fileData) {
+                attachmentHtml = `<div class="attachment"><a href="${p.fileData}" download="${escapeHtml(p.fileName)}">📎 ${escapeHtml(p.fileName)}</a></div>`;
+            }
+            const hashtagsHtml = p.hashtags && p.hashtags.length ? 
+                `<div class="hashtags">${p.hashtags.map(h => `<span class="hashtag" onclick="searchByHashtag('${escapeHtml(h)}')">#${escapeHtml(h)}</span>`).join('')}</div>` : '';
+            div.innerHTML = `
+                <div class="author" onclick="showProfile('${escapeHtml(p.author)}')">${escapeHtml(p.author)} · ${formatDate(p.time)}${p.isPoem ? ' ✎' : ''}${p.edited ? '<span class="edited-badge">(edited)</span>' : ''}</div>
+                <div class="content" id="content-${p.id}">${escapeHtml(p.content)}</div>
+                ${hashtagsHtml}
+                ${attachmentHtml}
+                <div class="post-actions">
+                    <button class="comments-toggle" onclick="toggleComments(${p.id})">cmnts (${comments.length})</button>
+                    ${(currentUser && (currentUser.isAdmin || p.author === currentUser.username)) ? `<button onclick="editPost(${p.id})">redact</button>` : ''}
+                    ${currentUser && currentUser.username !== p.author ? `<button onclick="sendPrivateMessage('${escapeHtml(p.author)}')">✉️</button>` : ''}
+                </div>
+                <div id="comments-${p.id}" style="display:none;" class="comments-section"></div>
+            `;
+            if ((currentUser && currentUser.isAdmin) || (currentUser && p.author === currentUser.username)) {
+                const delBtn = document.createElement('button');
+                delBtn.className = 'delete-btn';
+                delBtn.textContent = '×';
+                delBtn.onclick = function() { deletePost(p.id); };
+                div.appendChild(delBtn);
+            }
+            feed.appendChild(div);
+        }
+    }
+
+    async function editPost(postId) {
+        const post = posts.find(p => p.id === postId);
+        if (!post) return;
+        
+        const newContent = prompt('edit your post:', post.content);
+        if (newContent === null) return;
+        
+        const newHashtags = extractHashtags(newContent);
+        const res = await fetch(`/api/posts/${postId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ content: newContent, hashtags: newHashtags })
+        });
+        
+        if (res.ok) {
+            await loadData();
+            renderCurrentView();
+            spawnEditEmoji();
+        }
+    }
+
+    async function toggleComments(postId) {
+        const container = document.getElementById(`comments-${postId}`);
+        if (container.style.display === 'none') {
+            const comments = await loadComments(postId);
+            container.innerHTML = `
+                ${comments.map(c => `
+                    <div class="comment">
+                        <div class="comment-author" onclick="showProfile('${escapeHtml(c.author)}')">${escapeHtml(c.author)} · ${formatDate(c.time)}${c.edited ? '<span class="comment-edited">(edited)</span>' : ''}</div>
+                        <div class="comment-content">${escapeHtml(c.content)}</div>
+                        <div style="display:flex; gap:8px; margin-top:4px;">
+                            ${(currentUser && (currentUser.isAdmin || c.author === currentUser.username)) ? `<button onclick="editComment(${c.id}, ${postId}, '${escapeHtml(c.content)}')" style="background:transparent;color:#555;border:none;cursor:pointer;font-size:0.65em;">edit</button>` : ''}
+                            ${(currentUser && (currentUser.isAdmin || c.author === currentUser.username)) ? `<button onclick="deleteComment(${c.id}, ${postId})" style="background:transparent;color:#555;border:none;cursor:pointer;font-size:0.65em;">×</button>` : ''}
+                        </div>
+                    </div>
+                `).join('')}
+                <div class="add-comment">
+                    <input type="text" id="comment-input-${postId}" placeholder="add comment...">
+                    <button onclick="addComment(${postId}, document.getElementById('comment-input-${postId}').value); document.getElementById('comment-input-${postId}').value = ''">send</button>
+                </div>
+            `;
+            container.style.display = 'block';
+        } else {
+            container.style.display = 'none';
+        }
+    }
+
+    function renderPendingPhotos() {
+        if (pendingPhotos.length === 0) return;
+        const feed = document.getElementById('feedPosts');
+        if (!feed) return;
+        const div = document.createElement('div');
+        div.className = 'pending-photos';
+        div.innerHTML = '<h4>pending photos (admin only)</h4>';
+        pendingPhotos.forEach((p) => {
+            const item = document.createElement('div');
+            item.className = 'pending-item';
+            item.innerHTML = `
+                <img src="${p.data}" style="max-width:200px;max-height:200px;">
+                <span style="color:#aaa;">by ${escapeHtml(p.author)}</span>
+                <div>
+                    <button onclick="approvePhoto('${p.id}')" style="color:green;background:transparent;border:1px solid green;cursor:pointer;margin:2px;">✓</button>
+                    <button onclick="rejectPhoto('${p.id}')" style="color:red;background:transparent;border:1px solid red;cursor:pointer;margin:2px;">×</button>
+                </div>
+            `;
+            div.appendChild(item);
+        });
+        feed.appendChild(div);
+    }
+
+    async function approvePhoto(pendingId) {
+        const pendingPhoto = pendingPhotos.find(p => p.id === pendingId);
+        if (!pendingPhoto) return;
+        
+        const relatedPost = posts.find(p => p.pendingId === pendingId);
+        if (relatedPost) {
+            await fetch(`/api/posts/${relatedPost.id}`, { method: 'DELETE' });
+        }
+        
+        const newPost = {
+            author: pendingPhoto.author,
+            content: '',
+            time: Date.now(),
+            photo: pendingPhoto.data,
+            pendingApproval: 0
+        };
+        
+        await fetch('/api/posts', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(newPost)
+        });
+        
+        await fetch(`/api/pendingPhotos/${pendingId}`, { method: 'DELETE' });
+        await loadData();
+        showFeed();
+    }
+
+    async function rejectPhoto(pendingId) {
+        const postToDelete = posts.find(p => p.pendingId === pendingId);
+        if (postToDelete) {
+            await fetch(`/api/posts/${postToDelete.id}`, { method: 'DELETE' });
+        }
+        await fetch(`/api/pendingPhotos/${pendingId}`, { method: 'DELETE' });
+        await loadData();
+        showFeed();
+    }
+
+    async function showPoems() {
+        const buttons = document.querySelectorAll('.menu-buttons button');
+        setActiveButton(buttons[1]);
+        await renderPostsList(posts.filter(p => p.isPoem === 1), 'poemList', showPoems);
+        currentViewCallback = showPoems;
+    }
+
+    async function showPosts() {
+        const buttons = document.querySelectorAll('.menu-buttons button');
+        setActiveButton(buttons[2]);
+        await renderPostsList(posts.filter(p => !p.photo && !p.fileData), 'postList', showPosts);
+        currentViewCallback = showPosts;
+    }
+
+    async function showMusic() {
+        const buttons = document.querySelectorAll('.menu-buttons button');
+        setActiveButton(buttons[4]);
+        let musicPosts = posts.filter(p => p.fileData && p.fileName && p.fileName.match(/\.(mp3|wav|ogg|m4a)$/i) && !p.pendingApproval);
+        musicPosts = filterPostsBySearch(musicPosts);
+        
+        let html = '';
+        if (currentUser) {
+            html += `
+                <div class="post-form">
+                    <input type="file" id="musicFile" accept="audio/*">
+                    <button id="btnAddMusic">upload music</button>
+                </div>
+            `;
+        }
+        html += '<div id="musicList"></div>';
+        renderContent(html);
+        
+        if (currentUser) {
+            const addMusicBtn = document.getElementById('btnAddMusic');
+            if (addMusicBtn) addMusicBtn.onclick = uploadMusic;
+        }
+        
+        const list = document.getElementById('musicList');
+        if (!list) return;
+        list.innerHTML = '<h4 style="color:#888;">music</h4>';
+        
+        for (const p of musicPosts.sort((a,b) => b.time - a.time)) {
+            const comments = await loadComments(p.id);
+            const div = document.createElement('div');
+            div.className = 'post';
+            div.innerHTML = `
+                <div class="author" onclick="showProfile('${escapeHtml(p.author)}')">${escapeHtml(p.author)} · ${formatDate(p.time)}</div>
+                <div class="content">${escapeHtml(p.content)}</div>
+                <div class="attachment">
+                    <audio controls src="${p.fileData}"></audio>
+                    <div><a href="${p.fileData}" download="${escapeHtml(p.fileName)}">🎵 ${escapeHtml(p.fileName)}</a></div>
+                </div>
+                <div class="post-actions">
+                    <button class="comments-toggle" onclick="toggleComments(${p.id})">cmnts (${comments.length})</button>
+                    ${(currentUser && (currentUser.isAdmin || p.author === currentUser.username)) ? `<button onclick="editPost(${p.id})">redact</button>` : ''}
+                    ${currentUser && currentUser.username !== p.author ? `<button onclick="sendPrivateMessage('${escapeHtml(p.author)}')">✉️</button>` : ''}
+                </div>
+                <div id="comments-${p.id}" style="display:none;" class="comments-section"></div>
+            `;
+            if ((currentUser && currentUser.isAdmin) || (currentUser && p.author === currentUser.username)) {
+                const delBtn = document.createElement('button');
+                delBtn.className = 'delete-btn';
+                delBtn.textContent = '×';
+                delBtn.onclick = function() { deletePost(p.id); showMusic(); };
+                div.appendChild(delBtn);
+            }
+            list.appendChild(div);
+        }
+        
+        currentViewCallback = showMusic;
+    }
+
+    async function uploadMusic() {
+        const fileInput = document.getElementById('musicFile');
+        const file = fileInput.files[0];
+        if (!file) return;
+        if (!file.type.startsWith('audio/')) {
+            alert('please upload an audio file');
+            return;
+        }
+        
+        startLoadingEmojis();
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            await fetch('/api/posts', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    author: currentUser.username,
+                    content: '',
+                    time: Date.now(),
+                    fileName: file.name,
+                    fileData: e.target.result
+                })
+            });
+            await loadData();
+            showMusic();
+            stopLoadingEmojis();
+        };
+        reader.readAsDataURL(file);
+    }
+
+    async function renderPostsList(filteredPosts, containerId, refreshCallback) {
+        let filtered = filterPostsBySearch(filteredPosts);
+        renderContent(`<div id="${containerId}"></div>`);
+        const list = document.getElementById(containerId);
+        if (!list) return;
+        
+        for (const p of filtered.sort((a,b) => b.time - a.time)) {
+            const comments = await loadComments(p.id);
+            const div = document.createElement('div');
+            div.className = 'post';
+            let attachmentHtml = '';
+            if (p.photo) {
+                attachmentHtml = `<div class="attachment"><img src="${p.photo}" style="max-width:100%;max-height:400px;"></div>`;
+            } else if (p.fileData && p.fileName && p.fileName.match(/\.(mp3|wav|ogg|m4a)$/i)) {
+                attachmentHtml = `<div class="attachment"><audio controls src="${p.fileData}"></audio><div><a href="${p.fileData}" download="${escapeHtml(p.fileName)}">🎵 ${escapeHtml(p.fileName)}</a></div></div>`;
+            } else if (p.fileData) {
+                attachmentHtml = `<div class="attachment"><a href="${p.fileData}" download="${escapeHtml(p.fileName)}">📎 ${escapeHtml(p.fileName)}</a></div>`;
+            }
+            const hashtagsHtml = p.hashtags && p.hashtags.length ? 
+                `<div class="hashtags">${p.hashtags.map(h => `<span class="hashtag" onclick="searchByHashtag('${escapeHtml(h)}')">#${escapeHtml(h)}</span>`).join('')}</div>` : '';
+            div.innerHTML = `
+                <div class="author" onclick="showProfile('${escapeHtml(p.author)}')">${escapeHtml(p.author)} · ${formatDate(p.time)}${p.isPoem ? ' ✎' : ''}${p.edited ? '<span class="edited-badge">(edited)</span>' : ''}</div>
+                <div class="content">${escapeHtml(p.content)}</div>
+                ${hashtagsHtml}
+                ${attachmentHtml}
+                <div class="post-actions">
+                    <button class="comments-toggle" onclick="toggleComments(${p.id})">cmnts (${comments.length})</button>
+                    ${(currentUser && (currentUser.isAdmin || p.author === currentUser.username)) ? `<button onclick="editPost(${p.id})">redact</button>` : ''}
+                    ${currentUser && currentUser.username !== p.author ? `<button onclick="sendPrivateMessage('${escapeHtml(p.author)}')">✉️</button>` : ''}
+                </div>
+                <div id="comments-${p.id}" style="display:none;" class="comments-section"></div>
+            `;
+            if ((currentUser && currentUser.isAdmin) || (currentUser && p.author === currentUser.username)) {
+                const delBtn = document.createElement('button');
+                delBtn.className = 'delete-btn';
+                delBtn.textContent = '×';
+                delBtn.onclick = function() { deletePost(p.id); refreshCallback(); };
+                div.appendChild(delBtn);
+            }
+            list.appendChild(div);
+        }
+    }
+
+    async function showPhotos() {
+        const buttons = document.querySelectorAll('.menu-buttons button');
+        setActiveButton(buttons[3]);
+        
+        let html = '';
+        if (currentUser) {
+            html += `
+                <div class="post-form">
+                    <input type="file" id="photoFile" accept="image/*">
+                    <button id="btnAddPhoto">add photo</button>
+                </div>
+            `;
+        }
+        html += '<div id="photoGrid"></div>';
+        renderContent(html);
+
+        if (currentUser) {
+            const addPhotoBtn = document.getElementById('btnAddPhoto');
+            if (addPhotoBtn) addPhotoBtn.onclick = addPhoto;
+        }
+        renderPhotoGrid();
+        currentViewCallback = showPhotos;
+    }
+
+    async function showFiles() {
+        const buttons = document.querySelectorAll('.menu-buttons button');
+        setActiveButton(buttons[5]);
+        
+        let html = '';
+        if (currentUser) {
+            html += `
+                <div class="post-form">
+                    <input type="file" id="fileInput">
+                    <button id="btnAddFile">add file</button>
+                </div>
+            `;
+        }
+        html += '<div id="fileList"></div>';
+        renderContent(html);
+
+        if (currentUser) {
+            const addFileBtn = document.getElementById('btnAddFile');
+            if (addFileBtn) addFileBtn.onclick = addFile;
+        }
+        renderFileList();
+        currentViewCallback = showFiles;
+    }
+
+    async function showUserList() {
+        const buttons = document.querySelectorAll('.menu-buttons button');
+        setActiveButton(buttons[6]);
+        
+        await loadData();
+        renderContent('<div class="user-list" id="userListContainer"></div>');
+        renderUserList();
+        currentViewCallback = showUserList;
+    }
+
+    function renderPhotoGrid() {
+        const grid = document.getElementById('photoGrid');
+        if (!grid) return;
+        grid.innerHTML = '<h4 style="color:#888;">approved photos</h4>';
+        const approvedPhotos = posts.filter(p => p.photo && !p.pendingApproval);
+        if (approvedPhotos.length === 0) {
+            grid.innerHTML += '<p style="color:#555;">no photos yet</p>';
+        } else {
+            approvedPhotos.forEach(p => {
+                const div = document.createElement('div');
+                div.style.display = 'inline-block';
+                div.style.margin = '10px';
+                div.innerHTML = `<img src="${p.photo}" style="max-width:200px;max-height:200px;"><br><span style="color:#aaa;font-size:0.7em;">${escapeHtml(p.author)}</span>`;
+                grid.appendChild(div);
+            });
+        }
+    }
+
+    function renderFileList() {
+        const list = document.getElementById('fileList');
+        if (!list) return;
+        list.innerHTML = '<h4 style="color:#888;">files</h4>';
+        const filePosts = posts.filter(p => p.fileData && !p.pendingApproval && !p.photo && !p.fileName?.match(/\.(mp3|wav|ogg|m4a)$/i));
+        if (filePosts.length === 0) {
+            list.innerHTML += '<p style="color:#555;">no files yet</p>';
+        } else {
+            filePosts.forEach(f => {
+                const div = document.createElement('div');
+                div.style.padding = '5px';
+                div.innerHTML = `<a href="${f.fileData}" download="${escapeHtml(f.fileName)}" style="color:#aaa;">📎 ${escapeHtml(f.fileName)}</a> <span style="color:#555;font-size:0.7em;">by ${escapeHtml(f.author)}</span>`;
+                if (currentUser && (currentUser.isAdmin || currentUser.username === f.author)) {
+                    const delBtn = document.createElement('button');
+                    delBtn.textContent = '×';
+                    delBtn.style.background = 'transparent';
+                    delBtn.style.color = '#f00';
+                    delBtn.style.border = 'none';
+                    delBtn.style.cursor = 'pointer';
+                    delBtn.onclick = function() { deletePost(f.id); showFiles(); };
+                    div.appendChild(delBtn);
+                }
+                list.appendChild(div);
+            });
+        }
+    }
+
+    function renderUserList() {
+        const section = document.getElementById('userListContainer');
+        if (!section) return;
+        section.innerHTML = '<h3>users</h3>';
+        const userNames = Object.keys(users);
+        userNames.forEach(name => {
+            const div = document.createElement('div');
+            div.className = 'user-item';
+            div.innerHTML = `<span onclick="showProfile('${escapeHtml(name)}')">${escapeHtml(name)}${users[name].isAdmin ? '<span class="admin-badge">admin</span>' : ''}</span>`;
+            const btnGroup = document.createElement('span');
+            if (currentUser && !users[name].isAdmin && currentUser.isAdmin && name !== currentUser.username) {
+                const upgradeBtn = document.createElement('button');
+                upgradeBtn.textContent = 'upgrade to admin';
+                upgradeBtn.style.background = 'transparent';
+                upgradeBtn.style.color = '#888';
+                upgradeBtn.style.border = '1px solid #888';
+                upgradeBtn.style.padding = '2px 8px';
+                upgradeBtn.style.cursor = 'pointer';
+                upgradeBtn.style.fontFamily = 'monospace';
+                upgradeBtn.style.fontSize = '0.7em';
+                upgradeBtn.onclick = async function() {
+                    await fetch(`/api/users/${name}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ isAdmin: true })
+                    });
+                    await loadData();
+                    renderUserList();
+                };
+                btnGroup.appendChild(upgradeBtn);
+            }
+            if (currentUser && currentUser.isAdmin && name !== currentUser.username) {
+                const delUserBtn = document.createElement('button');
+                delUserBtn.textContent = 'delete';
+                delUserBtn.style.background = 'transparent';
+                delUserBtn.style.color = '#f00';
+                delUserBtn.style.border = '1px solid #f00';
+                delUserBtn.style.padding = '2px 8px';
+                delUserBtn.style.cursor = 'pointer';
+                delUserBtn.style.fontFamily = 'monospace';
+                delUserBtn.style.fontSize = '0.7em';
+                delUserBtn.onclick = function() { deleteUser(name); };
+                btnGroup.appendChild(delUserBtn);
+            }
+            if (currentUser && currentUser.username !== name) {
+                const blockBtn = document.createElement('button');
+                const isBlocked = blacklists[currentUser.username]?.includes(name);
+                blockBtn.textContent = isBlocked ? 'unblock' : 'block';
+                blockBtn.style.background = 'transparent';
+                blockBtn.style.color = '#888';
+                blockBtn.style.border = '1px solid #888';
+                blockBtn.style.padding = '2px 8px';
+                blockBtn.style.cursor = 'pointer';
+                blockBtn.style.fontFamily = 'monospace';
+                blockBtn.style.fontSize = '0.7em';
+                blockBtn.style.marginLeft = '6px';
+                blockBtn.onclick = async function() {
+                    await toggleBlock(name);
+                    renderUserList();
+                };
+                btnGroup.appendChild(blockBtn);
+                
+                const pmBtn = document.createElement('button');
+                pmBtn.textContent = '✉️';
+                pmBtn.style.background = 'transparent';
+                pmBtn.style.color = '#888';
+                pmBtn.style.border = '1px solid #888';
+                pmBtn.style.padding = '2px 8px';
+                pmBtn.style.cursor = 'pointer';
+                pmBtn.style.fontFamily = 'monospace';
+                pmBtn.style.fontSize = '0.7em';
+                pmBtn.style.marginLeft = '6px';
+                pmBtn.onclick = function() { sendPrivateMessage(name); };
+                btnGroup.appendChild(pmBtn);
+            }
+            div.appendChild(btnGroup);
+            section.appendChild(div);
+        });
+    }
+
+    async function toggleBlock(username) {
+        let blockList = blacklists[currentUser.username] || [];
+        if (blockList.includes(username)) {
+            blockList = blockList.filter(u => u !== username);
+        } else {
+            blockList.push(username);
+        }
+        await fetch('/api/blacklists', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ username: currentUser.username, blacklist: blockList })
+        });
+        await loadData();
+    }
+
+    function isBlocked(byUser, targetUser) {
+        return blacklists[byUser]?.includes(targetUser);
+    }
+
+    async function sendPrivateMessage(toUser) {
+        if (isBlocked(toUser, currentUser?.username)) {
+            alert('you are blocked by this user');
+            return;
+        }
+        if (isBlocked(currentUser?.username, toUser)) {
+            alert('you have blocked this user');
+            return;
+        }
+        const message = prompt(`send private message to ${toUser}:`);
+        if (!message) return;
+        
+        await fetch('/api/privateMessages', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                from: currentUser.username,
+                to: toUser,
+                message: message,
+                time: Date.now()
+            })
+        });
+        await addNotification(toUser, currentUser.username, 'pm');
+        floatEmoji('✉️');
+        if (currentViewCallback === showPrivateMessages) {
+            showPrivateMessages();
+        }
+    }
+
+    async function showPrivateMessages() {
+        if (!currentUser) return;
+        await loadData();
+        const myMessages = privateMessages.filter(m => m.fromUser === currentUser.username || m.toUser === currentUser.username);
+        const conversations = {};
+        myMessages.forEach(msg => {
+            const other = msg.fromUser === currentUser.username ? msg.toUser : msg.fromUser;
+            if (!conversations[other]) conversations[other] = [];
+            conversations[other].push(msg);
+        });
+        
+        let html = '<h3>private messages</h3>';
+        for (const [other, msgs] of Object.entries(conversations)) {
+            if (isBlocked(currentUser.username, other)) continue;
+            html += `
+                <div class="pm-container">
+                    <strong onclick="showProfile('${escapeHtml(other)}')" style="cursor:pointer;">${escapeHtml(other)}</strong>
+                    <div id="pm-${escapeHtml(other)}">
+                        ${msgs.sort((a,b) => a.time - b.time).map(m => `
+                            <div class="pm-message ${m.fromUser === currentUser.username ? 'sent' : 'received'}">
+                                <span style="color:#888;">${m.fromUser === currentUser.username ? '→' : '←'}</span>
+                                ${escapeHtml(m.message)}
+                                <span style="color:#555;font-size:0.7em;"> ${formatDate(m.time)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="add-comment" style="margin-top:8px;">
+                        <input type="text" id="pm-input-${escapeHtml(other)}" placeholder="reply...">
+                        <button onclick="sendReply('${escapeHtml(other)}', document.getElementById('pm-input-${escapeHtml(other)}').value)">send</button>
+                    </div>
+                </div>
+            `;
+        }
+        if (Object.keys(conversations).length === 0) {
+            html += '<p style="color:#555;">no messages yet</p>';
+        }
+        html += '<hr><button onclick="showFeed()" style="background:transparent;color:#888;border:1px solid #888;padding:6px;">back to feed</button>';
+        renderContent(html);
+        currentViewCallback = showPrivateMessages;
+    }
+
+    async function sendReply(toUser, message) {
+        if (!message) return;
+        await sendPrivateMessage(toUser);
+        showPrivateMessages();
+    }
+
+    async function showProfile(username) {
+        if (!username && !currentUser) return;
+        const targetUser = username || currentUser.username;
+        const user = users[targetUser];
+        if (!user) return;
+        
+        if (currentUser && isBlocked(currentUser.username, targetUser)) {
+            renderContent('<p style="color:#888;">user blocked</p><button onclick="showFeed()" style="background:transparent;color:#888;border:1px solid #888;padding:6px;margin-top:10px;">back to feed</button>');
+            return;
+        }
+        
+        const desc = user.description || '';
+        const isOwnProfile = currentUser && currentUser.username === targetUser;
+        const isAdmin = currentUser && currentUser.isAdmin;
+        const isFriend = currentUser && (users[currentUser.username]?.friends || []).includes(targetUser);
+        
+        const userPosts = posts.filter(p => p.author === targetUser && !p.pendingApproval);
+        const postsCount = userPosts.length;
+        const poemsCount = userPosts.filter(p => p.isPoem === 1).length;
+        const musicCount = userPosts.filter(p => p.fileData && p.fileName && p.fileName.match(/\.(mp3|wav|ogg|m4a)$/i)).length;
+        const photosCount = userPosts.filter(p => p.photo).length;
+
+        let html = `
+            <h2>${escapeHtml(targetUser)}${user.isAdmin ? ' <span style="color:#888;font-size:0.7em;">admin</span>' : ''}</h2>
+            <p style="color:#aaa;">${escapeHtml(desc) || 'no description yet'}</p>
+            <div class="profile-stats">
+                <span onclick="filterUserPosts('${escapeHtml(targetUser)}', 'all')">📄 posts [${postsCount}]</span>
+                <span onclick="filterUserPosts('${escapeHtml(targetUser)}', 'poems')">✎ poems [${poemsCount}]</span>
+                <span onclick="filterUserPosts('${escapeHtml(targetUser)}', 'music')">🎵 music [${musicCount}]</span>
+                <span onclick="filterUserPosts('${escapeHtml(targetUser)}', 'photos')">🖼️ photos [${photosCount}]</span>
+            </div>
+        `;
+
+        if (isOwnProfile) {
+            html += `
+                <textarea id="descInput" rows="3" maxlength="300" placeholder="your description (max 300)">${escapeHtml(desc)}</textarea>
+                <button id="saveDesc">save description</button>
+                <button id="changePasswordBtn" class="change-password-btn">change password</button>
+                <button id="deleteMyAccount" class="delete-account-btn">delete my account</button>
+                <button onclick="showPrivateMessages()" style="background:transparent;color:#888;border:1px solid #888;padding:6px;margin:4px;">📬 messages</button>
+            `;
+        }
+
+        if (!isOwnProfile && currentUser && targetUser !== currentUser.username) {
+            html += `<button id="toggleFriend">${isFriend ? 'remove from my fog-walkers' : 'add to my fog-walkers'}</button>`;
+            html += `<button onclick="sendPrivateMessage('${escapeHtml(targetUser)}')" style="margin:4px;">✉️ send message</button>`;
+            const isBlockedByMe = blacklists[currentUser.username]?.includes(targetUser);
+            html += `<button id="toggleBlock" style="margin:4px;">${isBlockedByMe ? 'unblock user' : 'block user'}</button>`;
+        }
+
+        if (isAdmin && !user.isAdmin && targetUser !== currentUser.username) {
+            html += `<button id="banUser" style="margin:4px;">${user.banned ? 'unban' : 'ban'}</button>`;
+        }
+        if (isAdmin && targetUser !== currentUser.username) {
+            html += `<button id="delUser" style="color:#f00;border:1px solid #f00;margin:4px;">delete user</button>`;
+        }
+
+        html += '<h3>fog-walkers</h3>';
+        const friends = user.friends || [];
+        if (friends.length === 0) {
+            html += '<p style="color:#555;">no fog-walkers yet</p>';
+        } else {
+            friends.forEach(f => {
+                if (!(currentUser && isBlocked(currentUser.username, f))) {
+                    html += `<div class="friend-item" onclick="showProfile('${escapeHtml(f)}')">${escapeHtml(f)}</div>`;
+                }
+            });
+        }
+
+        html += '<h3>posts</h3><div id="userPostsList"></div>';
+        renderContent(html);
+        
+        await renderUserPosts(targetUser, 'all');
+
+        if (isOwnProfile) {
+            const saveDescBtn = document.getElementById('saveDesc');
+            if (saveDescBtn) {
+                saveDescBtn.onclick = async function() {
+                    const val = document.getElementById('descInput').value;
+                    await fetch(`/api/users/${currentUser.username}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ description: val })
+                    });
+                    await loadData();
+                    showProfile(targetUser);
+                };
+            }
+            const changePwdBtn = document.getElementById('changePasswordBtn');
+            if (changePwdBtn) {
+                changePwdBtn.onclick = async function() {
+                    const oldPwd = prompt('current password:');
+                    if (!oldPwd) return;
+                    const newPwd = prompt('new password:');
+                    if (!newPwd) return;
+                    const confirmPwd = prompt('confirm new password:');
+                    if (newPwd !== confirmPwd) {
+                        alert('passwords do not match');
+                        return;
+                    }
+                    const res = await fetch('/api/changePassword', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ username: currentUser.username, oldPassword: oldPwd, newPassword: newPwd })
+                    });
+                    if (res.ok) {
+                        alert('password changed successfully! please log in again.');
+                        spawnEditEmoji();
+                        logout();
+                    } else {
+                        alert('failed to change password');
+                    }
+                };
+            }
+            const deleteBtn = document.getElementById('deleteMyAccount');
+            if (deleteBtn) {
+                deleteBtn.onclick = function() {
+                    if (confirm('are you sure you want to delete your account? this cannot be undone.')) {
+                        deleteUser(currentUser.username);
+                    }
+                };
+            }
+        }
+
+        if (!isOwnProfile && currentUser && targetUser !== currentUser.username) {
+            const toggleBtn = document.getElementById('toggleFriend');
+            if (toggleBtn) {
+                toggleBtn.onclick = async function() {
+                    let friendsList = users[currentUser.username]?.friends || [];
+                    if (isFriend) {
+                        friendsList = friendsList.filter(f => f !== targetUser);
+                    } else {
+                        friendsList.push(targetUser);
+                        await addNotification(targetUser, currentUser.username, 'friend');
+                        spawnFriendEmoji();
+                    }
+                    await fetch(`/api/users/${currentUser.username}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ friends: friendsList })
+                    });
+                    await loadData();
+                    showProfile(targetUser);
+                };
+            }
+            const toggleBlockBtn = document.getElementById('toggleBlock');
+            if (toggleBlockBtn) {
+                toggleBlockBtn.onclick = async function() {
+                    await toggleBlock(targetUser);
+                    showProfile(targetUser);
+                };
+            }
+        }
+
+        if (isAdmin && !user.isAdmin && targetUser !== currentUser.username) {
+            const banBtn = document.getElementById('banUser');
+            if (banBtn) {
+                banBtn.onclick = async function() {
+                    await fetch(`/api/users/${targetUser}`, {
+                        method: 'PUT',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ banned: !user.banned })
+                    });
+                    await loadData();
+                    showProfile(targetUser);
+                };
+            }
+        }
+        
+        if (isAdmin && targetUser !== currentUser.username) {
+            const delUserBtn = document.getElementById('delUser');
+            if (delUserBtn) {
+                delUserBtn.onclick = function() { deleteUser(targetUser); };
+            }
+        }
+    }
+
+    async function renderUserPosts(username, filterType) {
+        const container = document.getElementById('userPostsList');
+        if (!container) return;
+        
+        let userPosts = posts.filter(p => p.author === username && !p.pendingApproval);
+        if (filterType === 'poems') userPosts = userPosts.filter(p => p.isPoem === 1);
+        else if (filterType === 'music') userPosts = userPosts.filter(p => p.fileData && p.fileName && p.fileName.match(/\.(mp3|wav|ogg|m4a)$/i));
+        else if (filterType === 'photos') userPosts = userPosts.filter(p => p.photo);
+        
+        userPosts.sort((a,b) => b.time - a.time);
+        container.innerHTML = '';
+        
+        for (const p of userPosts) {
+            const comments = await loadComments(p.id);
+            const div = document.createElement('div');
+            div.className = 'post';
+            let attachmentHtml = '';
+            if (p.photo) {
+                attachmentHtml = `<div class="attachment"><img src="${p.photo}" style="max-width:100%;max-height:400px;"></div>`;
+            } else if (p.fileData && p.fileName && p.fileName.match(/\.(mp3|wav|ogg|m4a)$/i)) {
+                attachmentHtml = `<div class="attachment"><audio controls src="${p.fileData}"></audio><div><a href="${p.fileData}" download="${escapeHtml(p.fileName)}">🎵 ${escapeHtml(p.fileName)}</a></div></div>`;
+            } else if (p.fileData) {
+                attachmentHtml = `<div class="attachment"><a href="${p.fileData}" download="${escapeHtml(p.fileName)}">📎 ${escapeHtml(p.fileName)}</a></div>`;
+            }
+            const hashtagsHtml = p.hashtags && p.hashtags.length ? 
+                `<div class="hashtags">${p.hashtags.map(h => `<span class="hashtag" onclick="searchByHashtag('${escapeHtml(h)}')">#${escapeHtml(h)}</span>`).join('')}</div>` : '';
+            div.innerHTML = `
+                <div class="author">${escapeHtml(p.author)} · ${formatDate(p.time)}${p.isPoem ? ' ✎' : ''}${p.edited ? '<span class="edited-badge">(edited)</span>' : ''}</div>
+                <div class="content">${escapeHtml(p.content)}</div>
+                ${hashtagsHtml}
+                ${attachmentHtml}
+                <div class="post-actions">
+                    <button class="comments-toggle" onclick="toggleComments(${p.id})">cmnts (${comments.length})</button>
+                    ${(currentUser && (currentUser.isAdmin || p.author === currentUser.username)) ? `<button onclick="editPost(${p.id}); setTimeout(() => showProfile('${username}'), 500)">redact</button>` : ''}
+                </div>
+                <div id="comments-${p.id}" style="display:none;" class="comments-section"></div>
+            `;
+            container.appendChild(div);
+        }
+    }
+
+    function filterUserPosts(username, filterType) {
+        renderUserPosts(username, filterType);
+    }
+
+    window.toggleCommentsInProfile = async function(postId) {
+        const container = document.getElementById(`profile-comments-${postId}`);
+        if (container && container.style.display === 'none') {
+            const comments = await loadComments(postId);
+            container.innerHTML = `
+                ${comments.map(c => `
+                    <div class="comment">
+                        <div class="comment-author" onclick="showProfile('${escapeHtml(c.author)}')">${escapeHtml(c.author)} · ${formatDate(c.time)}${c.edited ? '<span class="comment-edited">(edited)</span>' : ''}</div>
+                        <div class="comment-content">${escapeHtml(c.content)}</div>
+                        ${(currentUser && (currentUser.isAdmin || c.author === currentUser.username)) ? `<button onclick="deleteCommentFromProfile(${c.id}, ${postId})" style="background:transparent;color:#555;border:none;cursor:pointer;font-size:0.7em;">×</button>` : ''}
+                    </div>
+                `).join('')}
+                <div class="add-comment">
+                    <input type="text" id="profile-comment-input-${postId}" placeholder="add comment...">
+                    <button onclick="addCommentToProfile(${postId}, document.getElementById('profile-comment-input-${postId}').value); document.getElementById('profile-comment-input-${postId}').value = ''">send</button>
+                </div>
+            `;
+            container.style.display = 'block';
+        } else if (container) {
+            container.style.display = 'none';
+        }
+    };
+
+    window.addCommentToProfile = async function(postId, content) {
+        await addComment(postId, content);
+        const container = document.getElementById(`profile-comments-${postId}`);
+        if (container) container.style.display = 'none';
+    };
+
+    window.deleteCommentFromProfile = async function(commentId, postId) {
+        await deleteComment(commentId, postId);
+        const container = document.getElementById(`profile-comments-${postId}`);
+        if (container) container.style.display = 'none';
+    };
+
+    async function deletePost(id) {
+        await fetch(`/api/posts/${id}`, { method: 'DELETE' });
+        await loadData();
+        renderCurrentView();
+    }
+
+    async function publishPost() {
+        const content = document.getElementById('postContent').value;
+        const hashtagsInput = document.getElementById('postHashtags')?.value || '';
+        const fileInput = document.getElementById('postFile');
+        const file = fileInput.files[0];
+        const isPoem = document.getElementById('isPoemCheckbox')?.checked || false;
+
+        let allHashtags = [...extractHashtags(content)];
+        const manualHashtags = hashtagsInput.split(/\s+/).filter(h => h.startsWith('#')).map(h => h.slice(1));
+        allHashtags = [...new Set([...allHashtags, ...manualHashtags])];
+
+        startLoadingEmojis();
+
+        const newPost = {
+            author: currentUser.username,
+            content: content || '',
+            time: Date.now(),
+            isPoem: isPoem ? 1 : 0,
+            hashtags: allHashtags
+        };
+
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                if (file.type.startsWith('image/')) {
+                    const photoId = Date.now() + '_' + Math.random();
+                    newPost.pendingApproval = 1;
+                    newPost.pendingId = photoId;
+                    
+                    await fetch('/api/pendingPhotos', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ id: photoId, author: currentUser.username, data: e.target.result })
+                    });
+                    
+                    await fetch('/api/posts', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(newPost)
+                    });
+                } else {
+                    newPost.fileName = file.name;
+                    newPost.fileData = e.target.result;
+                    
+                    await fetch('/api/posts', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(newPost)
+                    });
+                }
+                await loadData();
+                showFeed();
+                stopLoadingEmojis();
+            };
+            reader.readAsDataURL(file);
+        } else {
+            await fetch('/api/posts', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(newPost)
+            });
+            await loadData();
+            showFeed();
+            stopLoadingEmojis();
+        }
+    }
+
+    async function addPhoto() {
+        const fileInput = document.getElementById('photoFile');
+        const file = fileInput.files[0];
+        if (!file) return;
+        
+        startLoadingEmojis();
+        
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            const photoId = Date.now() + '_' + Math.random();
+            
+            await fetch('/api/pendingPhotos', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ id: photoId, author: currentUser.username, data: e.target.result })
+            });
+            
+            await fetch('/api/posts', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    author: currentUser.username,
+                    content: '',
+                    time: Date.now(),
+                    pendingApproval: 1,
+                    pendingId: photoId
+                })
+            });
+            
+            await loadData();
+            showPhotos();
+            stopLoadingEmojis();
+        };
+        reader.readAsDataURL(file);
+    }
+
+    async function addFile() {
+        const fileInput = document.getElementById('fileInput');
+        const file = fileInput.files[0];
+        if (!file) return;
+        
+        startLoadingEmojis();
+        
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            await fetch('/api/posts', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    author: currentUser.username,
+                    content: '',
+                    time: Date.now(),
+                    fileName: file.name,
+                    fileData: e.target.result
+                })
+            });
+            await loadData();
+            showFiles();
+            stopLoadingEmojis();
+        };
+        reader.readAsDataURL(file);
+    }
+
+    async function deleteUser(username) {
+        if (confirm(`are you sure you want to delete user "${username}"? this action cannot be undone.`)) {
+            startLoadingEmojis();
+            await fetch(`/api/users/${username}`, { method: 'DELETE' });
+            if (currentUser && currentUser.username === username) {
+                logout();
+            } else {
+                await loadData();
+                if (document.getElementById('userListContainer')) {
+                    showUserList();
+                } else {
+                    showFeed();
+                }
+            }
+            stopLoadingEmojis();
+        }
+    }
+
+    async function authenticate(username) {
+        currentUser = { username: username, isAdmin: users[username]?.isAdmin || false };
+        document.getElementById('btnLogin').style.display = 'none';
+        document.getElementById('btnRegister').style.display = 'none';
+        document.getElementById('loggedUser').textContent = username;
+        document.getElementById('loggedUser').style.display = 'inline';
+        document.getElementById('btnLogout').style.display = 'inline';
+        document.getElementById('menuButtons').style.display = 'flex';
+        document.getElementById('searchArea').style.display = 'flex';
+        document.getElementById('notificationIcon').style.display = 'flex';
+        spawnLoginEmojis();
+        await loadNotifications();
+        showFeed();
+    }
+
+    function logout() {
+        stopLoadingEmojis();
+        currentUser = null;
+        notifications = [];
+        commentsCache = {};
+        currentSearchQuery = '';
+        document.getElementById('btnLogin').style.display = 'inline-block';
+        document.getElementById('btnRegister').style.display = 'inline-block';
+        document.getElementById('loggedUser').style.display = 'none';
+        document.getElementById('btnLogout').style.display = 'none';
+        document.getElementById('menuButtons').style.display = 'none';
+        document.getElementById('searchArea').style.display = 'none';
+        document.getElementById('notificationIcon').style.display = 'none';
+        renderContent('<p style="color:#888;">you have logged out. log in again to continue.</p>');
+    }
+
+    document.getElementById('btnLogout').onclick = logout;
+    
+    document.getElementById('notificationIcon').onclick = () => {
+        const panel = document.getElementById('notificationPanel');
+        panel.classList.toggle('show');
+        if (panel.classList.contains('show')) {
+            renderNotificationPanel();
+        }
+    };
+    
+    document.getElementById('btnLogin').onclick = async function() {
+        const name = prompt('username:');
+        if (!name) return;
+        const pass = prompt('password:');
+        if (!pass) return;
+        
+        try {
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username: name, password: pass })
+            });
+            
+            if (res.status === 401) {
+                alert('invalid credentials');
+                return;
+            }
+            if (res.status === 403) {
+                alert('account banned');
+                return;
+            }
+            if (!res.ok) {
+                alert('login failed');
+                return;
+            }
+            
+            await loadData();
+            authenticate(name);
+        } catch(e) {
+            alert('connection error');
+        }
+    };
+    
+    document.getElementById('btnRegister').onclick = async function() {
+        const name = prompt('choose username:');
+        if (!name) return;
+        if (name === 'Edd_Leon_CAt') { alert('username taken'); return; }
+        const pass = prompt('choose password:');
+        if (!pass) return;
+        
+        try {
+            const res = await fetch('/api/register', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username: name, password: pass })
+            });
+            
+            if (res.status === 400) {
+                alert('username taken');
+                return;
+            }
+            if (!res.ok) {
+                alert('registration failed');
+                return;
+            }
+            
+            await loadData();
+            authenticate(name);
+        } catch(e) {
+            alert('connection error');
+        }
+    };
+
+    (async () => {
+        await loadData();
+        renderContent('<p style="color:#888;">those who see the darkness light the lamp. log in or register to start.</p>');
+    })();
+</script>
+
+</body>
+</html>
