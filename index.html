@@ -537,6 +537,31 @@
         hr {
             border-color: #333;
         }
+        .xmr-donate-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 90px;
+            background: #111;
+            border: 1px solid #f60;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 1000;
+            transition: all 0.2s;
+            color: #f60;
+            font-family: monospace;
+        }
+        .xmr-donate-btn:hover {
+            border-color: #f90;
+            background: #1a1a1a;
+            transform: scale(1.05);
+        }
     </style>
 </head>
 <body>
@@ -574,6 +599,8 @@
 </div>
 <div class="notification-panel" id="notificationPanel"></div>
 
+<div class="xmr-donate-btn" id="xmrDonateBtn">XMR</div>
+
 <script>
     let currentUser = null;
     let posts = [];
@@ -585,6 +612,15 @@
     let currentSearchQuery = '';
     let privateMessages = [];
     let blacklists = {};
+
+    // XMR Donate
+    const xmrAddress = "49hXCL4xz6hJ11mpCHXQCT11houffkg36bvyWSKhEnbEAm8wh6h9Knt43Gupt1boq9CvmnJ83vssLEn7i8AfuhLY9waDCdV";
+    
+    function copyXmrAddress() {
+        navigator.clipboard.writeText(xmrAddress);
+        floatEmoji('📋');
+        alert('XMR address copied to clipboard');
+    }
 
     function floatEmoji(text) {
         const el = document.createElement('span');
@@ -1936,6 +1972,8 @@
 
     document.getElementById('btnLogout').onclick = logout;
     
+    document.getElementById('xmrDonateBtn').addEventListener('click', copyXmrAddress);
+    
     document.getElementById('notificationIcon').onclick = () => {
         const panel = document.getElementById('notificationPanel');
         panel.classList.toggle('show');
@@ -2009,7 +2047,7 @@
 
     (async () => {
         await loadData();
-        renderContent('<p style="color:#888;">those who see the darkness light the lamp. log in or register to start.</p>');
+        renderContent('<p style="color:#888;">welcome to lamp in fog. log in or register to start.</p>');
     })();
 </script>
 
