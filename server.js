@@ -3,12 +3,16 @@ const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 const https = require('https');
 const path = require('path');
+const NodeCache = require('node-cache');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(__dirname));
+
+// Настройка кеша
+const cache = new NodeCache({ stdTTL: 60, checkperiod: 120 }); // 60 секунд TTL
 
 // Пул подключений к PostgreSQL
 const pool = new Pool({
@@ -28,7 +32,6 @@ const initDb = async () => {
         )
     `);
     
-    // Таблица для друзей (связи между пользователями)
     await pool.query(`
         CREATE TABLE IF NOT EXISTS friends (
             user_id TEXT NOT NULL,
@@ -103,7 +106,6 @@ const initDb = async () => {
         )
     `);
     
-    // Создаём админа при первом запуске
     const res = await pool.query("SELECT COUNT(*) FROM users");
     if (parseInt(res.rows[0].count) === 0) {
         const hashedPassword = await bcrypt.hash('hell_yeah', 10);
@@ -123,7 +125,6 @@ app.get('/api/users', async (req, res) => {
     try {
         const result = await pool.query("SELECT username, description, isAdmin, banned FROM users");
         const users = {};
-        
         for (const u of result.rows) {
             const friendsRes = await pool.query("SELECT friend_id FROM friends WHERE user_id = $1", [u.username]);
             users[u.username] = {
@@ -144,9 +145,7 @@ app.get('/api/users/:username', async (req, res) => {
         const result = await pool.query("SELECT * FROM users WHERE username = $1", [req.params.username]);
         if (result.rows.length === 0) return res.status(404).json({ error: 'user not found' });
         const user = result.rows[0];
-        
         const friendsRes = await pool.query("SELECT friend_id FROM friends WHERE user_id = $1", [user.username]);
-        
         res.json({
             username: user.username,
             description: user.description || '',
@@ -166,7 +165,6 @@ app.post('/api/register', async (req, res) => {
     try {
         const existing = await pool.query("SELECT * FROM users WHERE username = $1", [username]);
         if (existing.rows.length > 0) return res.status(400).json({ error: 'username taken' });
-        
         const hashedPassword = await bcrypt.hash(password, 10);
         await pool.query(
             "INSERT INTO users (username, password, description, isAdmin) VALUES ($1, $2, $3, $4)",
@@ -185,10 +183,8 @@ app.post('/api/login', async (req, res) => {
         if (result.rows.length === 0) return res.status(401).json({ error: 'invalid credentials' });
         const user = result.rows[0];
         if (user.banned === 1) return res.status(403).json({ error: 'account banned' });
-        
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return res.status(401).json({ error: 'invalid credentials' });
-        
         res.json({ username: user.username, isAdmin: user.isadmin === 1 });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -201,10 +197,8 @@ app.post('/api/changePassword', async (req, res) => {
         const result = await pool.query("SELECT * FROM users WHERE username = $1", [username]);
         if (result.rows.length === 0) return res.status(404).json({ error: 'user not found' });
         const user = result.rows[0];
-        
         const valid = await bcrypt.compare(oldPassword, user.password);
         if (!valid) return res.status(401).json({ error: 'wrong password' });
-        
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         await pool.query("UPDATE users SET password = $1 WHERE username = $2", [hashedPassword, username]);
         res.json({ success: true });
@@ -213,10 +207,18 @@ app.post('/api/changePassword', async (req, res) => {
     }
 });
 
-// ===== ПОСТЫ С ПАГИНАЦИЕЙ =====
+// ===== ПОСТЫ С ПАГИНАЦИЕЙ И КЕШИРОВАНИЕМ =====
 app.get('/api/posts', async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const offset = parseInt(req.query.offset) || 0;
+    const cacheKey = `posts:${limit}:${offset}`;
+    
+    const cachedPosts = cache.get(cacheKey);
+    if (cachedPosts) {
+        console.log(`📦 Cache hit for ${cacheKey}`);
+        return res.json(cachedPosts);
+    }
+    
     try {
         const result = await pool.query(
             "SELECT * FROM posts ORDER BY time DESC LIMIT $1 OFFSET $2",
@@ -226,12 +228,15 @@ app.get('/api/posts', async (req, res) => {
             ...p,
             hashtags: p.hashtags || []
         }));
+        cache.set(cacheKey, posts);
+        console.log(`💾 Cache set for ${cacheKey}`);
         res.json(posts);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
+// Очистка кеша при публикации, обновлении или удалении поста
 app.post('/api/posts', async (req, res) => {
     const { author, content, time, isPoem, photo, pendingApproval, pendingId, fileName, fileData, fileType, edited, hashtags } = req.body;
     try {
@@ -240,6 +245,8 @@ app.post('/api/posts', async (req, res) => {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
             [author, content || '', time, isPoem ? 1 : 0, photo, pendingApproval ? 1 : 0, pendingId, fileName, fileData, fileType, edited ? 1 : 0, hashtags || []]
         );
+        cache.flushAll(); // Очищаем весь кеш постов
+        console.log('🗑️ Cache cleared after new post');
         res.json({ id: result.rows[0].id });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -253,6 +260,8 @@ app.put('/api/posts/:id', async (req, res) => {
             "UPDATE posts SET content = $1, hashtags = $2, edited = 1 WHERE id = $3",
             [content, hashtags || [], req.params.id]
         );
+        cache.flushAll();
+        console.log('🗑️ Cache cleared after post update');
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -263,11 +272,15 @@ app.delete('/api/posts/:id', async (req, res) => {
     try {
         await pool.query("DELETE FROM posts WHERE id = $1", [req.params.id]);
         await pool.query("DELETE FROM comments WHERE postId = $1", [req.params.id]);
+        cache.flushAll();
+        console.log('🗑️ Cache cleared after post deletion');
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
+
+// ===== ОСТАЛЬНЫЕ РОУТЫ (без изменений) =====
 
 app.get('/api/pendingPhotos', async (req, res) => {
     try {
