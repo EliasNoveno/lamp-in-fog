@@ -24,8 +24,16 @@ const initDb = async () => {
             password TEXT NOT NULL,
             description TEXT,
             banned INTEGER DEFAULT 0,
-            isAdmin INTEGER DEFAULT 0,
-            friends TEXT[] DEFAULT '{}'
+            isAdmin INTEGER DEFAULT 0
+        )
+    `);
+    
+    // Таблица для друзей (связи между пользователями)
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS friends (
+            user_id TEXT NOT NULL,
+            friend_id TEXT NOT NULL,
+            PRIMARY KEY (user_id, friend_id)
         )
     `);
     
@@ -113,16 +121,18 @@ initDb().catch(err => console.error('DB init error:', err));
 
 app.get('/api/users', async (req, res) => {
     try {
-        const result = await pool.query("SELECT username, description, isAdmin, banned, friends FROM users");
+        const result = await pool.query("SELECT username, description, isAdmin, banned FROM users");
         const users = {};
-        result.rows.forEach(u => {
+        
+        for (const u of result.rows) {
+            const friendsRes = await pool.query("SELECT friend_id FROM friends WHERE user_id = $1", [u.username]);
             users[u.username] = {
                 description: u.description || '',
                 isAdmin: u.isadmin === 1,
                 banned: u.banned === 1,
-                friends: u.friends || []
+                friends: friendsRes.rows.map(f => f.friend_id)
             };
-        });
+        }
         res.json(users);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -134,12 +144,15 @@ app.get('/api/users/:username', async (req, res) => {
         const result = await pool.query("SELECT * FROM users WHERE username = $1", [req.params.username]);
         if (result.rows.length === 0) return res.status(404).json({ error: 'user not found' });
         const user = result.rows[0];
+        
+        const friendsRes = await pool.query("SELECT friend_id FROM friends WHERE user_id = $1", [user.username]);
+        
         res.json({
             username: user.username,
             description: user.description || '',
             isAdmin: user.isadmin === 1,
             banned: user.banned === 1,
-            friends: user.friends || []
+            friends: friendsRes.rows.map(f => f.friend_id)
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -156,8 +169,8 @@ app.post('/api/register', async (req, res) => {
         
         const hashedPassword = await bcrypt.hash(password, 10);
         await pool.query(
-            "INSERT INTO users (username, password, description, isAdmin, friends) VALUES ($1, $2, $3, $4, $5)",
-            [username, hashedPassword, '', 0, []]
+            "INSERT INTO users (username, password, description, isAdmin) VALUES ($1, $2, $3, $4)",
+            [username, hashedPassword, '', 0]
         );
         res.json({ success: true });
     } catch (err) {
@@ -200,9 +213,15 @@ app.post('/api/changePassword', async (req, res) => {
     }
 });
 
+// ===== ПОСТЫ С ПАГИНАЦИЕЙ =====
 app.get('/api/posts', async (req, res) => {
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = parseInt(req.query.offset) || 0;
     try {
-        const result = await pool.query("SELECT * FROM posts ORDER BY time DESC");
+        const result = await pool.query(
+            "SELECT * FROM posts ORDER BY time DESC LIMIT $1 OFFSET $2",
+            [limit, offset]
+        );
         const posts = result.rows.map(p => ({
             ...p,
             hashtags: p.hashtags || []
@@ -426,17 +445,30 @@ app.put('/api/users/:username', async (req, res) => {
     if (description !== undefined) { updates.push(`description = $${paramIndex}`); values.push(description); paramIndex++; }
     if (isAdmin !== undefined) { updates.push(`isAdmin = $${paramIndex}`); values.push(isAdmin ? 1 : 0); paramIndex++; }
     if (banned !== undefined) { updates.push(`banned = $${paramIndex}`); values.push(banned ? 1 : 0); paramIndex++; }
-    if (friends !== undefined) { updates.push(`friends = $${paramIndex}`); values.push(friends); paramIndex++; }
     
-    if (updates.length === 0) return res.json({ success: true });
+    if (updates.length === 0 && friends === undefined) return res.json({ success: true });
     
-    values.push(req.params.username);
     try {
-        await pool.query(`UPDATE users SET ${updates.join(', ')} WHERE username = $${paramIndex}`, values);
-        res.json({ success: true });
+        await pool.query(`UPDATE users SET ${updates.join(', ')} WHERE username = $${paramIndex}`, [...values, req.params.username]);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        return res.status(500).json({ error: err.message });
     }
+    
+    if (friends !== undefined) {
+        try {
+            await pool.query("DELETE FROM friends WHERE user_id = $1", [req.params.username]);
+            for (const friendId of friends) {
+                await pool.query(
+                    "INSERT INTO friends (user_id, friend_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+                    [req.params.username, friendId]
+                );
+            }
+        } catch (err) {
+            return res.status(500).json({ error: err.message });
+        }
+    }
+    
+    res.json({ success: true });
 });
 
 app.delete('/api/users/:username', async (req, res) => {
@@ -448,6 +480,7 @@ app.delete('/api/users/:username', async (req, res) => {
         await pool.query("DELETE FROM pendingPhotos WHERE author = $1", [username]);
         await pool.query("DELETE FROM privateMessages WHERE fromUser = $1 OR toUser = $1", [username]);
         await pool.query("DELETE FROM blacklists WHERE username = $1", [username]);
+        await pool.query("DELETE FROM friends WHERE user_id = $1 OR friend_id = $1", [username]);
         await pool.query("DELETE FROM users WHERE username = $1", [username]);
         res.json({ success: true });
     } catch (err) {
