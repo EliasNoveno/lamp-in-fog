@@ -537,10 +537,19 @@
         hr {
             border-color: #333;
         }
-        .xmr-donate-btn {
+        
+        /* БЛОК КНОПОК СПРАВА ВНИЗУ - НА ОДНОМ УРОВНЕ */
+        .bottom-actions {
             position: fixed;
             bottom: 20px;
-            right: 90px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .xmr-donate-btn {
             background: #111;
             border: 1px solid #f60;
             border-radius: 50%;
@@ -552,7 +561,6 @@
             cursor: pointer;
             font-size: 14px;
             font-weight: bold;
-            z-index: 1000;
             transition: all 0.2s;
             color: #f60;
             font-family: monospace;
@@ -563,13 +571,9 @@
             transform: scale(1.05);
         }
         
-        /* Кнопка скачивания */
         .download-btn {
-            position: fixed;
-            bottom: 90px;
-            right: 20px;
-            background: #111;
-            border: 1px solid #4a9eff;
+            background: #1a1a1a;
+            border: 1px solid #555;
             border-radius: 50%;
             width: 50px;
             height: 50px;
@@ -578,23 +582,22 @@
             justify-content: center;
             cursor: pointer;
             font-size: 20px;
-            z-index: 1000;
             transition: all 0.2s;
-            color: #4a9eff;
+            color: #888;
             text-decoration: none;
             font-family: monospace;
         }
         .download-btn:hover {
-            border-color: #7ab8ff;
-            background: #1a1a1a;
+            border-color: #888;
+            background: #2a2a2a;
+            color: white;
             transform: scale(1.05);
         }
 
-        /* Дропдаун для скачивания */
         .download-dropdown {
             display: none;
             position: fixed;
-            bottom: 145px;
+            bottom: 80px;
             right: 20px;
             background: #0a0a0a;
             border: 1px solid #444;
@@ -655,10 +658,12 @@
 </div>
 <div class="notification-panel" id="notificationPanel"></div>
 
-<div class="xmr-donate-btn" id="xmrDonateBtn">XMR</div>
+<!-- КНОПКИ СПРАВА ВНИЗУ -->
+<div class="bottom-actions">
+    <div class="xmr-donate-btn" id="xmrDonateBtn" title="Donate XMR">XMR</div>
+    <div class="download-btn" id="downloadBtn" onclick="toggleDownloadMenu()" title="Download app">⬇</div>
+</div>
 
-<!-- КНОПКА СКАЧИВАНИЯ -->
-<div class="download-btn" id="downloadBtn" onclick="toggleDownloadMenu()">⬇</div>
 <div class="download-dropdown" id="downloadDropdown">
     <a href="#" onclick="downloadApp('windows')">windows (exe)</a>
     <a href="#" onclick="downloadApp('macos')">macos (dmg)</a>
@@ -697,12 +702,11 @@
         const dropdown = document.getElementById('downloadDropdown');
         dropdown.classList.remove('show');
         
-        // Здесь реальные ссылки на скачивание
         const downloadUrls = {
-            windows: 'https://github.com/yourusername/lamp-in-fog/releases/download/v1.0.0/lamp-in-fog-windows.exe',
-            macos: 'https://github.com/yourusername/lamp-in-fog/releases/download/v1.0.0/lamp-in-fog-macos.dmg',
-            linux: 'https://github.com/yourusername/lamp-in-fog/releases/download/v1.0.0/lamp-in-fog-linux.AppImage',
-            source: 'https://github.com/yourusername/lamp-in-fog/archive/refs/heads/main.zip'
+            windows: 'https://github.com/EliasNoveno/lamp-in-fog/releases/download/v1.0.0/lamp-in-fog.Setup.exe',
+            macos: 'https://github.com/EliasNoveno/lamp-in-fog/releases/download/v1.0.0/lamp-in-fog.dmg',
+            linux: 'https://github.com/EliasNoveno/lamp-in-fog/releases/download/v1.0.0/lamp-in-fog.AppImage',
+            source: 'https://github.com/EliasNoveno/lamp-in-fog/archive/refs/heads/main.zip'
         };
         
         // Показываем сообщение, если ссылки еще не настроены
