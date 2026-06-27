@@ -183,6 +183,15 @@ const initDb = async () => {
                 blocked TEXT[] DEFAULT '{}'
             )
         `);
+        await pool.query(`
+    CREATE TABLE IF NOT EXISTS saved_posts (
+        id SERIAL PRIMARY KEY,
+        username TEXT NOT NULL,
+        post_id INTEGER NOT NULL,
+        saved_at BIGINT NOT NULL,
+        UNIQUE(username, post_id)
+    )
+`);
         
         // === НОВАЯ ТАБЛИЦА ДЛЯ ЗАКЛАДОК ===
         await pool.query(`
