@@ -18,32 +18,32 @@ app.use((req, res, next) => {
     next();
 });
 
-// Защита заголовков
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            imgSrc: ["'self'", "data:", "blob:"],
-            mediaSrc: ["'self'", "data:", "blob:"],
-            connectSrc: ["'self'"],
-            fontSrc: ["'self'"],
-            objectSrc: ["'none'"],
-            frameAncestors: ["'none'"],
-            baseUri: ["'self'"],
-        },
-    },
-    hsts: {
-        maxAge: 31536000,
-        includeSubDomains: true,
-        preload: true
-    },
-    xssFilter: true,
-    noSniff: true,
-    referrerPolicy: { policy: 'no-referrer' },
-    frameguard: { action: 'deny' }
-}));
+// Временно отключаем helmet для теста
+// app.use(helmet({
+//     contentSecurityPolicy: {
+//         directives: {
+//             defaultSrc: ["'self'"],
+//             scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+//             styleSrc: ["'self'", "'unsafe-inline'"],
+//             imgSrc: ["'self'", "data:", "blob:"],
+//             mediaSrc: ["'self'", "data:", "blob:"],
+//             connectSrc: ["'self'"],
+//             fontSrc: ["'self'"],
+//             objectSrc: ["'none'"],
+//             frameAncestors: ["'none'"],
+//             baseUri: ["'self'"],
+//         },
+//     },
+//     hsts: {
+//         maxAge: 31536000,
+//         includeSubDomains: true,
+//         preload: true
+//     },
+//     xssFilter: true,
+//     noSniff: true,
+//     referrerPolicy: { policy: 'no-referrer' },
+//     frameguard: { action: 'deny' }
+// }));
 
 // Лимиты запросов с учетом IP
 const globalLimiter = rateLimit({
