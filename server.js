@@ -23,10 +23,10 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
             styleSrc: ["'self'", "'unsafe-inline'"],
-            imgSrc: ["'self'", "data:"],
-            mediaSrc: ["'self'", "data:"],
+            imgSrc: ["'self'", "data:", "blob:"],
+            mediaSrc: ["'self'", "data:", "blob:"],
             connectSrc: ["'self'"],
             fontSrc: ["'self'"],
             objectSrc: ["'none'"],
