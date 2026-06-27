@@ -86,9 +86,13 @@ const initDb = async () => {
                 description TEXT DEFAULT '',
                 banned INTEGER DEFAULT 0,
                 isAdmin INTEGER DEFAULT 0,
-                float_text TEXT DEFAULT ':>',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+        `);
+        
+        // Добавляем колонку float_text если её нет
+        await pool.query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS float_text TEXT DEFAULT ':>';
         `);
         
         await pool.query(`
@@ -183,17 +187,7 @@ const initDb = async () => {
                 blocked TEXT[] DEFAULT '{}'
             )
         `);
-        await pool.query(`
-    CREATE TABLE IF NOT EXISTS saved_posts (
-        id SERIAL PRIMARY KEY,
-        username TEXT NOT NULL,
-        post_id INTEGER NOT NULL,
-        saved_at BIGINT NOT NULL,
-        UNIQUE(username, post_id)
-    )
-`);
         
-        // === НОВАЯ ТАБЛИЦА ДЛЯ ЗАКЛАДОК ===
         await pool.query(`
             CREATE TABLE IF NOT EXISTS saved_posts (
                 id SERIAL PRIMARY KEY,
@@ -273,7 +267,7 @@ app.post('/api/register', authLimiter, async (req, res) => {
     password = sanitize(password);
     
     if (!validateUsername(username)) {
-        return res.status(400).json({ error: 'Invalid username: 2-30 characters, letters, numbers, underscores, dots or hyphens only' });
+        return res.status(400).json({ error: 'Invalid username: 1-30 characters, letters, numbers, underscores, dots or hyphens only' });
     }
     
     if (!validatePassword(password)) {
@@ -961,15 +955,13 @@ https.createServer(httpsOptions, app).listen(PORT, () => {
     console.log(`⚠️  Accept the security warning in your browser`);
 });
 
-// ===== PING SERVICE (ОТКЛЮЧЕН ДЛЯ ЛОКАЛЬНОЙ РАЗРАБОТКИ) =====
-if (process.env.NODE_ENV === 'production') {
-    const myUrl = process.env.RENDER_EXTERNAL_URL || `https://localhost:${PORT}`;
-    setInterval(() => {
-        const protocol = myUrl.startsWith('https') ? https : require('http');
-        protocol.get(myUrl, (res) => {
-            console.log(`🤍 ping: ${myUrl} answered ${res.statusCode}`);
-        }).on('error', (err) => {
-            console.log(`💔 ping error: ${err.message}`);
-        });
-    }, 10 * 60 * 1000);
-}
+// ===== PING SERVICE =====
+const myUrl = process.env.RENDER_EXTERNAL_URL || `https://localhost:${PORT}`;
+setInterval(() => {
+    const protocol = myUrl.startsWith('https') ? https : require('http');
+    protocol.get(myUrl, (res) => {
+        console.log(`🤍 ping: ${myUrl} answered ${res.statusCode}`);
+    }).on('error', (err) => {
+        console.log(`💔 ping error: ${err.message}`);
+    });
+}, 10 * 60 * 1000);
