@@ -707,24 +707,17 @@
         dropdown.classList.toggle('show');
     }
 
-    function downloadApp(os) {
-        const dropdown = document.getElementById('downloadDropdown');
-        dropdown.classList.remove('show');
-        
-        let url;
-        if (os === 'windows') {
-            url = DOWNLOAD_URLS.windows;
-        } else if (os === 'macos') {
-            url = DOWNLOAD_URLS.macos;
-        } else if (os === 'linux') {
-            url = DOWNLOAD_URLS.linux;
-        } else {
-            url = DOWNLOAD_URLS.source;
-        }
-        
-        // Открываем ссылку для скачивания
-        window.open(url, '_blank');
-        floatEmoji('⬇');
+ function downloadApp(os) {
+    const dropdown = document.getElementById('downloadDropdown');
+    dropdown.classList.remove('show');
+    
+    // Прямая ссылка на релиз
+    const releaseUrl = 'https://github.com/EliasNoveno/lamp-in-fog/releases/tag/v1.0.0';
+    
+    // Открываем страницу релиза
+    window.open(releaseUrl, '_blank');
+    floatEmoji('⬇');
+}
     }
 
     function floatEmoji(text) {
