@@ -66,7 +66,7 @@ const sanitize = (input) => {
 
 const validateUsername = (username) => {
     if (!username || typeof username !== 'string') return false;
-    return /^[a-zA-Z0-9_.-]{2,30}$/.test(username);
+    return /^[a-zA-Z0-9_.-]{1,30}$/.test(username);
 };
 
 const validatePassword = (password) => {
