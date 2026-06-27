@@ -538,7 +538,7 @@
             border-color: #333;
         }
         
-        /* БЛОК КНОПОК СПРАВА ВНИЗУ - НА ОДНОМ УРОВНЕ */
+        /* БЛОК КНОПОК СПРАВА ВНИЗУ */
         .bottom-actions {
             position: fixed;
             bottom: 20px;
@@ -593,34 +593,6 @@
             color: white;
             transform: scale(1.05);
         }
-
-        .download-dropdown {
-            display: none;
-            position: fixed;
-            bottom: 80px;
-            right: 20px;
-            background: #0a0a0a;
-            border: 1px solid #444;
-            padding: 10px;
-            z-index: 1002;
-            min-width: 150px;
-        }
-        .download-dropdown.show {
-            display: block;
-        }
-        .download-dropdown a {
-            display: block;
-            color: #aaa;
-            text-decoration: none;
-            padding: 5px 10px;
-            font-size: 0.8em;
-            font-family: monospace;
-            text-transform: lowercase;
-        }
-        .download-dropdown a:hover {
-            color: white;
-            background: #1a1a1a;
-        }
     </style>
 </head>
 <body>
@@ -658,17 +630,15 @@
 </div>
 <div class="notification-panel" id="notificationPanel"></div>
 
-<!-- КНОПКИ СПРАВА ВНИЗУ -->
+<!-- КНОПКИ СПРАВА ВНИЗУ - ПРОСТАЯ ССЫЛКА НА GITHUB -->
 <div class="bottom-actions">
     <div class="xmr-donate-btn" id="xmrDonateBtn" title="Donate XMR">XMR</div>
-    <div class="download-btn" id="downloadBtn" onclick="toggleDownloadMenu()" title="Download app">⬇</div>
-</div>
-
-<div class="download-dropdown" id="downloadDropdown">
-    <a href="#" onclick="downloadApp('windows')">windows (exe)</a>
-    <a href="#" onclick="downloadApp('macos')">macos (dmg)</a>
-    <a href="#" onclick="downloadApp('linux')">linux (appimage)</a>
-    <a href="#" onclick="downloadApp('source')">source code</a>
+    <a href="https://github.com/EliasNoveno/lamp-in-fog/releases/tag/v1.0.0" 
+       target="_blank" 
+       class="download-btn" 
+       title="Download from GitHub">
+        ⬇
+    </a>
 </div>
 
 <script>
@@ -683,15 +653,6 @@
     let privateMessages = [];
     let blacklists = {};
 
-    // ССЫЛКИ НА РЕЛИЗЫ GITHUB
-    const RELEASE_BASE = 'https://github.com/EliasNoveno/lamp-in-fog/releases/download/v1.0.0';
-    const DOWNLOAD_URLS = {
-        windows: RELEASE_BASE + '/Lamp.in.Fog.Windows.zip',
-        macos: RELEASE_BASE + '/Lamp.in.Fog.macOS.zip',
-        linux: RELEASE_BASE + '/Lamp.in.Fog.Linux.zip',
-        source: 'https://github.com/EliasNoveno/lamp-in-fog/archive/refs/heads/main.zip'
-    };
-
     // XMR Donate
     const xmrAddress = "49hXCL4xz6hJ11mpCHXQCT11houffkg36bvyWSKhEnbEAm8wh6h9Knt43Gupt1boq9CvmnJ83vssLEn7i8AfuhLY9waDCdV";
     
@@ -699,25 +660,6 @@
         navigator.clipboard.writeText(xmrAddress);
         floatEmoji('📋');
         alert('XMR address copied to clipboard');
-    }
-
-    // Скачивание приложения
-    function toggleDownloadMenu() {
-        const dropdown = document.getElementById('downloadDropdown');
-        dropdown.classList.toggle('show');
-    }
-
- function downloadApp(os) {
-    const dropdown = document.getElementById('downloadDropdown');
-    dropdown.classList.remove('show');
-    
-    // Прямая ссылка на релиз
-    const releaseUrl = 'https://github.com/EliasNoveno/lamp-in-fog/releases/tag/v1.0.0';
-    
-    // Открываем страницу релиза
-    window.open(releaseUrl, '_blank');
-    floatEmoji('⬇');
-}
     }
 
     function floatEmoji(text) {
@@ -2080,15 +2022,6 @@
         }
     };
     
-    // Закрытие дропдауна при клике вне его
-    document.addEventListener('click', function(e) {
-        const dropdown = document.getElementById('downloadDropdown');
-        const btn = document.getElementById('downloadBtn');
-        if (dropdown && !dropdown.contains(e.target) && !btn.contains(e.target)) {
-            dropdown.classList.remove('show');
-        }
-    });
-    
     document.getElementById('btnLogin').onclick = async function() {
         const name = prompt('username:');
         if (!name) return;
@@ -2154,7 +2087,7 @@
 
     (async () => {
         await loadData();
-        renderContent('<p style="color:#888;">Those who see darkness light the lamp. log in or register to start.</p>');
+        renderContent('<p style="color:#888;">Those who see darkness light the lamp.. log in or register to start.</p>');
     })();
 </script>
 
