@@ -14,13 +14,20 @@ function createWindow() {
         icon: path.join(__dirname, 'icon.png')
     });
 
-    // Загружаем локальный сервер или продакшен URL
-    const url = process.env.NODE_ENV === 'production' 
-        ? 'https://your-app.onrender.com' 
-        : 'http://localhost:3000';
+    // ПРАВИЛЬНЫЙ URL — твой сервер на HTTPS и порту 3002
+    const url = 'https://localhost:3002';
     
+    console.log('🔗 Loading:', url);
     mainWindow.loadURL(url);
+    
+    // Открываем DevTools для отладки (можно убрать потом)
+    mainWindow.webContents.openDevTools();
+    
     mainWindow.setMenuBarVisibility(false);
+    
+    mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+        console.error('❌ Failed to load:', errorCode, errorDescription);
+    });
 }
 
 app.whenReady().then(createWindow);
