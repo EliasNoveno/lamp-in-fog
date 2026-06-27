@@ -1,13 +1,15 @@
 const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
-const https = require('https');
 const crypto = require('crypto');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const https = require('https');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3002;
 
 // ===== БЕЗОПАСНОСТЬ =====
 // Принудительный HTTPS (для продакшена)
@@ -18,15 +20,15 @@ app.use((req, res, next) => {
     next();
 });
 
-// Временно отключаем helmet для теста
+// Защита заголовков - ВРЕМЕННО ОТКЛЮЧЕНА ДЛЯ ТЕСТА
 // app.use(helmet({
 //     contentSecurityPolicy: {
 //         directives: {
 //             defaultSrc: ["'self'"],
-//             scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+//             scriptSrc: ["'self'", "'unsafe-inline'"],
 //             styleSrc: ["'self'", "'unsafe-inline'"],
-//             imgSrc: ["'self'", "data:", "blob:"],
-//             mediaSrc: ["'self'", "data:", "blob:"],
+//             imgSrc: ["'self'", "data:"],
+//             mediaSrc: ["'self'", "data:"],
 //             connectSrc: ["'self'"],
 //             fontSrc: ["'self'"],
 //             objectSrc: ["'none'"],
@@ -138,7 +140,6 @@ const initDb = async () => {
             )
         `);
         
-        // Индексы для ускорения
         await pool.query(`
             CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
             CREATE INDEX IF NOT EXISTS idx_sessions_username ON sessions(username);
@@ -256,7 +257,7 @@ const authenticate = async (req) => {
 
 // ===== API РОУТЫ =====
 
-// Users - с защитой от перебора
+// Users
 app.get('/api/users', async (req, res) => {
     try {
         const result = await pool.query(
@@ -282,7 +283,7 @@ app.get('/api/users', async (req, res) => {
     }
 });
 
-// Register с усиленной валидацией
+// Register
 app.post('/api/register', authLimiter, async (req, res) => {
     let { username, password } = req.body;
     username = sanitize(username);
@@ -313,7 +314,7 @@ app.post('/api/register', authLimiter, async (req, res) => {
     }
 });
 
-// Login с защитой от брутфорса
+// Login
 app.post('/api/login', authLimiter, async (req, res) => {
     let { username, password } = req.body;
     username = sanitize(username);
@@ -344,7 +345,6 @@ app.post('/api/login', authLimiter, async (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
         
-        // Создаем сессию
         const token = generateToken();
         const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
         
@@ -377,7 +377,7 @@ app.post('/api/logout', async (req, res) => {
     res.json({ success: true });
 });
 
-// Change password с дополнительной проверкой
+// Change password
 app.post('/api/changePassword', async (req, res) => {
     const session = await authenticate(req);
     if (!session) return res.status(401).json({ error: 'Unauthorized' });
@@ -411,7 +411,6 @@ app.post('/api/changePassword', async (req, res) => {
             [hashedPassword, session.username]
         );
         
-        // Удаляем все старые сессии
         await pool.query(
             "DELETE FROM sessions WHERE username = $1",
             [session.username]
@@ -424,7 +423,7 @@ app.post('/api/changePassword', async (req, res) => {
     }
 });
 
-// Posts - с пагинацией и защитой
+// Posts
 app.get('/api/posts', async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit) || 20, 50);
     const offset = Math.max(parseInt(req.query.offset) || 0, 0);
@@ -447,7 +446,7 @@ app.get('/api/posts', async (req, res) => {
     }
 });
 
-// Post creation с валидацией файлов
+// Post creation
 app.post('/api/posts', uploadLimiter, async (req, res) => {
     const session = await authenticate(req);
     if (!session) return res.status(401).json({ error: 'Unauthorized' });
@@ -460,7 +459,6 @@ app.post('/api/posts', uploadLimiter, async (req, res) => {
             return res.status(400).json({ error: 'Content too long' });
         }
         
-        // Проверка размера файла (макс 5MB)
         if (fileData && Buffer.byteLength(fileData, 'utf8') > 5 * 1024 * 1024) {
             return res.status(400).json({ error: 'File too large (max 5MB)' });
         }
@@ -487,29 +485,416 @@ app.post('/api/posts', uploadLimiter, async (req, res) => {
     }
 });
 
-// ... (остальные роуты аналогично дополнены защитой)
+// Update post
+app.put('/api/posts/:id', async (req, res) => {
+    const session = await authenticate(req);
+    if (!session) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const { id } = req.params;
+    let { content, hashtags } = req.body;
+    content = sanitize(content || '');
+    
+    try {
+        const postResult = await pool.query(
+            "SELECT * FROM posts WHERE id = $1",
+            [id]
+        );
+        if (postResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Post not found' });
+        }
+        
+        const post = postResult.rows[0];
+        if (post.author !== session.username && !session.isAdmin) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+        
+        if (hashtags) {
+            if (!Array.isArray(hashtags)) hashtags = [];
+            hashtags = hashtags.slice(0, 30)
+                .map(h => sanitize(h).toLowerCase())
+                .filter(h => /^[a-z0-9_]+$/.test(h));
+        } else {
+            hashtags = [];
+        }
+        
+        await pool.query(
+            "UPDATE posts SET content = $1, hashtags = $2, edited = 1 WHERE id = $3",
+            [content, hashtags, id]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Post update error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
-// ===== PING SERVICE =====
-const myUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
-setInterval(() => {
-    const protocol = myUrl.startsWith('https') ? https : require('http');
-    protocol.get(myUrl, (res) => {
-        console.log(`🤍 ping: ${myUrl} answered ${res.statusCode}`);
-    }).on('error', (err) => {
-        console.log(`💔 ping error: ${err.message}`);
-    });
-}, 10 * 60 * 1000);
+// Delete post
+app.delete('/api/posts/:id', async (req, res) => {
+    const session = await authenticate(req);
+    if (!session) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const { id } = req.params;
+    
+    try {
+        const postResult = await pool.query(
+            "SELECT * FROM posts WHERE id = $1",
+            [id]
+        );
+        if (postResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Post not found' });
+        }
+        
+        const post = postResult.rows[0];
+        if (post.author !== session.username && !session.isAdmin) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+        
+        await pool.query("DELETE FROM posts WHERE id = $1", [id]);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Post delete error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
-const https = require('https');
-const fs = require('fs');
-const path = require('path');
+// Comments
+app.get('/api/comments/:postId', async (req, res) => {
+    const { postId } = req.params;
+    
+    try {
+        const result = await pool.query(
+            "SELECT * FROM comments WHERE postId = $1 ORDER BY time ASC",
+            [postId]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Comments fetch error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
+app.post('/api/comments', async (req, res) => {
+    const session = await authenticate(req);
+    if (!session) return res.status(401).json({ error: 'Unauthorized' });
+    
+    let { postId, author, content } = req.body;
+    content = sanitize(content || '');
+    
+    if (!content || content.length > 5000) {
+        return res.status(400).json({ error: 'Invalid comment' });
+    }
+    
+    try {
+        await pool.query(
+            "INSERT INTO comments (postId, author, content, time) VALUES ($1, $2, $3, $4)",
+            [postId, session.username, content, Date.now()]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Comment creation error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.put('/api/comments/:id', async (req, res) => {
+    const session = await authenticate(req);
+    if (!session) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const { id } = req.params;
+    let { content, edited } = req.body;
+    content = sanitize(content || '');
+    
+    try {
+        const commentResult = await pool.query(
+            "SELECT * FROM comments WHERE id = $1",
+            [id]
+        );
+        if (commentResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Comment not found' });
+        }
+        
+        const comment = commentResult.rows[0];
+        if (comment.author !== session.username && !session.isAdmin) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+        
+        await pool.query(
+            "UPDATE comments SET content = $1, edited = $2 WHERE id = $3",
+            [content, edited ? 1 : 0, id]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Comment update error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.delete('/api/comments/:id', async (req, res) => {
+    const session = await authenticate(req);
+    if (!session) return res.status(401).json({ error: 'Unauthorized' });
+    
+    const { id } = req.params;
+    
+    try {
+        const commentResult = await pool.query(
+            "SELECT * FROM comments WHERE id = $1",
+            [id]
+        );
+        if (commentResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Comment not found' });
+        }
+        
+        const comment = commentResult.rows[0];
+        if (comment.author !== session.username && !session.isAdmin) {
+            return res.status(403).json({ error: 'Forbidden' });
+        }
+        
+        await pool.query("DELETE FROM comments WHERE id = $1", [id]);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Comment delete error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Pending photos
+app.get('/api/pendingPhotos', async (req, res) => {
+    try {
+        const result = await pool.query("SELECT * FROM pendingPhotos");
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Pending photos fetch error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.post('/api/pendingPhotos', async (req, res) => {
+    const session = await authenticate(req);
+    if (!session) return res.status(401).json({ error: 'Unauthorized' });
+    
+    let { id, author, data } = req.body;
+    
+    try {
+        await pool.query(
+            "INSERT INTO pendingPhotos (id, author, data) VALUES ($1, $2, $3)",
+            [id, session.username, data]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Pending photo creation error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.delete('/api/pendingPhotos/:id', async (req, res) => {
+    const session = await authenticate(req);
+    if (!session || !session.isAdmin) {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+    
+    const { id } = req.params;
+    
+    try {
+        await pool.query("DELETE FROM pendingPhotos WHERE id = $1", [id]);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Pending photo delete error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Notifications
+app.get('/api/notifications/:username', async (req, res) => {
+    const { username } = req.params;
+    
+    try {
+        const result = await pool.query(
+            "SELECT * FROM notifications WHERE targetUser = $1 ORDER BY time DESC",
+            [username]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Notifications fetch error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.post('/api/notifications', async (req, res) => {
+    const session = await authenticate(req);
+    if (!session) return res.status(401).json({ error: 'Unauthorized' });
+    
+    let { targetUser, fromUser, type } = req.body;
+    
+    try {
+        await pool.query(
+            "INSERT INTO notifications (targetUser, fromUser, type, time) VALUES ($1, $2, $3, $4)",
+            [targetUser, session.username, type, Date.now()]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Notification creation error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.put('/api/notifications/:id/read', async (req, res) => {
+    const { id } = req.params;
+    
+    try {
+        await pool.query(
+            "UPDATE notifications SET read = 1 WHERE id = $1",
+            [id]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Notification read error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Private messages
+app.get('/api/privateMessages', async (req, res) => {
+    try {
+        const result = await pool.query(
+            "SELECT * FROM privateMessages ORDER BY time ASC"
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Private messages fetch error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.post('/api/privateMessages', async (req, res) => {
+    const session = await authenticate(req);
+    if (!session) return res.status(401).json({ error: 'Unauthorized' });
+    
+    let { toUser, message } = req.body;
+    message = sanitize(message || '');
+    
+    if (!message || message.length > 5000) {
+        return res.status(400).json({ error: 'Invalid message' });
+    }
+    
+    try {
+        await pool.query(
+            "INSERT INTO privateMessages (fromUser, toUser, message, time) VALUES ($1, $2, $3, $4)",
+            [session.username, toUser, message, Date.now()]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Private message creation error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Blacklists
+app.get('/api/blacklists', async (req, res) => {
+    try {
+        const result = await pool.query("SELECT * FROM blacklists");
+        const blacklists = {};
+        result.rows.forEach(row => {
+            blacklists[row.username] = row.blocked || [];
+        });
+        res.json(blacklists);
+    } catch (err) {
+        console.error('Blacklists fetch error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+app.post('/api/blacklists', async (req, res) => {
+    const session = await authenticate(req);
+    if (!session) return res.status(401).json({ error: 'Unauthorized' });
+    
+    let { username, blacklist } = req.body;
+    
+    try {
+        await pool.query(
+            "INSERT INTO blacklists (username, blocked) VALUES ($1, $2) ON CONFLICT (username) DO UPDATE SET blocked = $2",
+            [username, blacklist]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Blacklist update error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Users update (admin)
+app.put('/api/users/:username', async (req, res) => {
+    const session = await authenticate(req);
+    if (!session || !session.isAdmin) {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+    
+    const { username } = req.params;
+    let { description, isAdmin, banned, friends } = req.body;
+    
+    try {
+        if (description !== undefined) {
+            description = sanitize(description || '');
+            await pool.query(
+                "UPDATE users SET description = $1 WHERE username = $2",
+                [description, username]
+            );
+        }
+        
+        if (isAdmin !== undefined) {
+            await pool.query(
+                "UPDATE users SET isAdmin = $1 WHERE username = $2",
+                [isAdmin ? 1 : 0, username]
+            );
+        }
+        
+        if (banned !== undefined) {
+            await pool.query(
+                "UPDATE users SET banned = $1 WHERE username = $2",
+                [banned ? 1 : 0, username]
+            );
+        }
+        
+        if (friends !== undefined) {
+            await pool.query("DELETE FROM friends WHERE user_id = $1", [username]);
+            for (const friend of friends) {
+                await pool.query(
+                    "INSERT INTO friends (user_id, friend_id) VALUES ($1, $2)",
+                    [username, friend]
+                );
+            }
+        }
+        
+        res.json({ success: true });
+    } catch (err) {
+        console.error('User update error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Delete user (admin)
+app.delete('/api/users/:username', async (req, res) => {
+    const session = await authenticate(req);
+    if (!session || !session.isAdmin) {
+        return res.status(403).json({ error: 'Forbidden' });
+    }
+    
+    const { username } = req.params;
+    
+    try {
+        await pool.query("DELETE FROM users WHERE username = $1", [username]);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('User delete error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// ===== HTTPS SERVER =====
 // Создаем самоподписанный сертификат если его нет
 const certDir = __dirname;
 const keyPath = path.join(certDir, 'key.pem');
 const certPath = path.join(certDir, 'cert.pem');
 
-// Функция для создания сертификата (если нет)
 function ensureCertificates() {
     if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
         console.log('🔐 Generating self-signed certificate...');
@@ -520,7 +905,7 @@ function ensureCertificates() {
             });
             console.log('✅ Certificate generated');
         } catch (e) {
-            console.error('❌ Failed to generate certificate. Please install openssl.');
+            console.error('❌ Failed to generate certificate. Please install openssl:');
             console.error('   brew install openssl');
             process.exit(1);
         }
@@ -529,15 +914,24 @@ function ensureCertificates() {
 
 ensureCertificates();
 
-// HTTPS сервер
 const httpsOptions = {
     key: fs.readFileSync(keyPath),
     cert: fs.readFileSync(certPath)
 };
 
-// Запуск HTTPS
-const PORT = process.env.PORT || 3002;
+// Запускаем HTTPS сервер
 https.createServer(httpsOptions, app).listen(PORT, () => {
     console.log(`🌫️ Lamp in Fog running at https://localhost:${PORT}`);
     console.log(`⚠️  Accept the security warning in your browser`);
 });
+
+// ===== PING SERVICE (для Render) =====
+const myUrl = process.env.RENDER_EXTERNAL_URL || `https://localhost:${PORT}`;
+setInterval(() => {
+    const protocol = myUrl.startsWith('https') ? https : require('http');
+    protocol.get(myUrl, (res) => {
+        console.log(`🤍 ping: ${myUrl} answered ${res.statusCode}`);
+    }).on('error', (err) => {
+        console.log(`💔 ping error: ${err.message}`);
+    });
+}, 10 * 60 * 1000);
