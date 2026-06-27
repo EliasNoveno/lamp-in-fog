@@ -23,6 +23,7 @@
             width: 100%;
             max-width: 700px;
             padding: 20px;
+            padding-bottom: 120px;
         }
         .top-menu {
             position: sticky;
@@ -538,60 +539,74 @@
             border-color: #333;
         }
         
-        /* БЛОК КНОПОК СПРАВА ВНИЗУ */
-        .bottom-actions {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
+        /* ПАГИНАЦИЯ */
+        .pagination {
             display: flex;
-            gap: 10px;
-            align-items: center;
-            z-index: 1000;
-        }
-        
-        .xmr-donate-btn {
-            background: #111;
-            border: 1px solid #f60;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            display: flex;
-            align-items: center;
             justify-content: center;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: bold;
-            transition: all 0.2s;
-            color: #f60;
-            font-family: monospace;
+            gap: 8px;
+            margin: 20px 0;
+            flex-wrap: wrap;
         }
-        .xmr-donate-btn:hover {
-            border-color: #f90;
-            background: #1a1a1a;
-            transform: scale(1.05);
-        }
-        
-        .download-btn {
-            background: #1a1a1a;
-            border: 1px solid #555;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-size: 20px;
-            transition: all 0.2s;
+        .pagination a {
             color: #888;
             text-decoration: none;
-            font-family: monospace;
+            padding: 4px 10px;
+            border: 1px solid #444;
+            border-radius: 3px;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: all 0.2s;
         }
-        .download-btn:hover {
-            border-color: #888;
-            background: #2a2a2a;
+        .pagination a:hover {
             color: white;
-            transform: scale(1.05);
+            border-color: #888;
+        }
+        .pagination a.active {
+            color: white;
+            border-color: #888;
+            background: #1a1a1a;
+        }
+        
+        /* ФУТЕР С ПОЧТОЙ */
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: black;
+            border-top: 1px solid #333;
+            padding: 12px 20px;
+            text-align: center;
+            z-index: 999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .footer .download-link {
+            color: #888;
+            text-decoration: none;
+            font-size: 0.85em;
+            transition: color 0.2s;
+            padding: 4px 12px;
+            border: 1px solid #444;
+            border-radius: 3px;
+        }
+        .footer .download-link:hover {
+            color: white;
+            border-color: #888;
+        }
+        .footer .email {
+            color: #555;
+            font-size: 0.8em;
+        }
+        .footer .email a {
+            color: #555;
+            text-decoration: none;
+        }
+        .footer .email a:hover {
+            color: #888;
         }
     </style>
 </head>
@@ -630,15 +645,18 @@
 </div>
 <div class="notification-panel" id="notificationPanel"></div>
 
-<!-- КНОПКИ СПРАВА ВНИЗУ - ПРОСТАЯ ССЫЛКА НА GITHUB -->
-<div class="bottom-actions">
-    <div class="xmr-donate-btn" id="xmrDonateBtn" title="Donate XMR">XMR</div>
+<!-- ФУТЕР С ССЫЛКОЙ И ПОЧТОЙ -->
+<div class="footer">
     <a href="https://github.com/EliasNoveno/lamp-in-fog/releases/tag/v1.0.0" 
        target="_blank" 
-       class="download-btn" 
-       title="Download from GitHub">
-        ⬇
+       class="download-link">
+        ⬇ download app
     </a>
+    <span class="email">
+        text if you want. 
+        <a href="mailto:lampinfog@atomicmail.io">lampinfog@atomicmail.io</a> 
+        :&gt;
+    </span>
 </div>
 
 <script>
@@ -652,6 +670,8 @@
     let currentSearchQuery = '';
     let privateMessages = [];
     let blacklists = {};
+    let currentPage = 1;
+    const POSTS_PER_PAGE = 20;
 
     // XMR Donate
     const xmrAddress = "49hXCL4xz6hJ11mpCHXQCT11houffkg36bvyWSKhEnbEAm8wh6h9Knt43Gupt1boq9CvmnJ83vssLEn7i8AfuhLY9waDCdV";
@@ -888,6 +908,7 @@
 
     function handleSearch(event) {
         currentSearchQuery = event.target.value.toLowerCase();
+        currentPage = 1;
         renderCurrentView();
     }
 
@@ -899,6 +920,29 @@
             (p.hashtags && p.hashtags.some(h => h.toLowerCase().includes(currentSearchQuery)))
         );
     }
+
+    function renderPagination(totalPosts, callback) {
+        const totalPages = Math.ceil(totalPosts / POSTS_PER_PAGE);
+        if (totalPages <= 1) return '';
+        
+        let html = '<div class="pagination">';
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<a onclick="goToPage(${i}, '${callback}')" class="${i === currentPage ? 'active' : ''}">[${i}]</a>`;
+        }
+        html += '</div>';
+        return html;
+    }
+
+    window.goToPage = function(page, callback) {
+        currentPage = page;
+        if (callback === 'showFeed') showFeed();
+        else if (callback === 'showPoems') showPoems();
+        else if (callback === 'showPosts') showPosts();
+        else if (callback === 'showMusic') showMusic();
+        else if (callback === 'showPhotos') showPhotos();
+        else if (callback === 'showFiles') showFiles();
+        else renderCurrentView();
+    };
 
     async function showStatistics() {
         const buttons = document.querySelectorAll('.menu-buttons button');
@@ -952,6 +996,7 @@
         currentSearchQuery = '#' + tag;
         const searchInput = document.getElementById('searchInput');
         if (searchInput) searchInput.value = '#' + tag;
+        currentPage = 1;
         showFeed();
     }
 
@@ -975,6 +1020,7 @@
             `;
         }
         html += '<div id="feedPosts"></div>';
+        html += '<div id="paginationContainer"></div>';
         renderContent(html);
 
         if (currentUser) {
@@ -996,11 +1042,21 @@
         const feed = document.getElementById('feedPosts');
         if (!feed) return;
         feed.innerHTML = '';
+        
         let visiblePosts = posts.filter(p => !p.pendingApproval);
         visiblePosts = filterPostsBySearch(visiblePosts);
         const sorted = [...visiblePosts].sort((a,b) => b.time - a.time);
         
-        for (const p of sorted) {
+        // Пагинация
+        const totalPosts = sorted.length;
+        const totalPages = Math.ceil(totalPosts / POSTS_PER_PAGE);
+        if (currentPage > totalPages) currentPage = totalPages || 1;
+        const start = (currentPage - 1) * POSTS_PER_PAGE;
+        const end = start + POSTS_PER_PAGE;
+        const pagePosts = sorted.slice(start, end);
+        
+        // Рендерим посты
+        for (const p of pagePosts) {
             const comments = await loadComments(p.id);
             const div = document.createElement('div');
             div.className = 'post';
@@ -1034,6 +1090,16 @@
                 div.appendChild(delBtn);
             }
             feed.appendChild(div);
+        }
+        
+        // Пагинация
+        const paginationContainer = document.getElementById('paginationContainer');
+        if (paginationContainer) {
+            if (totalPages > 1) {
+                paginationContainer.innerHTML = renderPagination(totalPosts, 'showFeed');
+            } else {
+                paginationContainer.innerHTML = '';
+            }
         }
     }
 
@@ -1175,6 +1241,7 @@
             `;
         }
         html += '<div id="musicList"></div>';
+        html += '<div id="paginationContainer"></div>';
         renderContent(html);
         
         if (currentUser) {
@@ -1182,11 +1249,26 @@
             if (addMusicBtn) addMusicBtn.onclick = uploadMusic;
         }
         
+        await renderMusicList(musicPosts);
+        currentViewCallback = async () => {
+            await renderMusicList(musicPosts);
+        };
+    }
+
+    async function renderMusicList(musicPosts) {
         const list = document.getElementById('musicList');
         if (!list) return;
         list.innerHTML = '<h4 style="color:#888;">music</h4>';
         
-        for (const p of musicPosts.sort((a,b) => b.time - a.time)) {
+        const sorted = [...musicPosts].sort((a,b) => b.time - a.time);
+        const totalPosts = sorted.length;
+        const totalPages = Math.ceil(totalPosts / POSTS_PER_PAGE);
+        if (currentPage > totalPages) currentPage = totalPages || 1;
+        const start = (currentPage - 1) * POSTS_PER_PAGE;
+        const end = start + POSTS_PER_PAGE;
+        const pagePosts = sorted.slice(start, end);
+        
+        for (const p of pagePosts) {
             const comments = await loadComments(p.id);
             const div = document.createElement('div');
             div.className = 'post';
@@ -1214,7 +1296,14 @@
             list.appendChild(div);
         }
         
-        currentViewCallback = showMusic;
+        const paginationContainer = document.getElementById('paginationContainer');
+        if (paginationContainer) {
+            if (totalPages > 1) {
+                paginationContainer.innerHTML = renderPagination(totalPosts, 'showMusic');
+            } else {
+                paginationContainer.innerHTML = '';
+            }
+        }
     }
 
     async function uploadMusic() {
@@ -1249,11 +1338,22 @@
 
     async function renderPostsList(filteredPosts, containerId, refreshCallback) {
         let filtered = filterPostsBySearch(filteredPosts);
-        renderContent(`<div id="${containerId}"></div>`);
+        const sorted = [...filtered].sort((a,b) => b.time - a.time);
+        const totalPosts = sorted.length;
+        const totalPages = Math.ceil(totalPosts / POSTS_PER_PAGE);
+        if (currentPage > totalPages) currentPage = totalPages || 1;
+        const start = (currentPage - 1) * POSTS_PER_PAGE;
+        const end = start + POSTS_PER_PAGE;
+        const pagePosts = sorted.slice(start, end);
+        
+        let html = `<div id="${containerId}"></div>`;
+        html += '<div id="paginationContainer"></div>';
+        renderContent(html);
+        
         const list = document.getElementById(containerId);
         if (!list) return;
         
-        for (const p of filtered.sort((a,b) => b.time - a.time)) {
+        for (const p of pagePosts) {
             const comments = await loadComments(p.id);
             const div = document.createElement('div');
             div.className = 'post';
@@ -1288,6 +1388,15 @@
             }
             list.appendChild(div);
         }
+        
+        const paginationContainer = document.getElementById('paginationContainer');
+        if (paginationContainer) {
+            if (totalPages > 1) {
+                paginationContainer.innerHTML = renderPagination(totalPosts, refreshCallback.name || 'showFeed');
+            } else {
+                paginationContainer.innerHTML = '';
+            }
+        }
     }
 
     async function showPhotos() {
@@ -1304,14 +1413,53 @@
             `;
         }
         html += '<div id="photoGrid"></div>';
+        html += '<div id="paginationContainer"></div>';
         renderContent(html);
 
         if (currentUser) {
             const addPhotoBtn = document.getElementById('btnAddPhoto');
             if (addPhotoBtn) addPhotoBtn.onclick = addPhoto;
         }
-        renderPhotoGrid();
-        currentViewCallback = showPhotos;
+        await renderPhotoGrid();
+        currentViewCallback = async () => {
+            await renderPhotoGrid();
+        };
+    }
+
+    async function renderPhotoGrid() {
+        const grid = document.getElementById('photoGrid');
+        if (!grid) return;
+        grid.innerHTML = '<h4 style="color:#888;">approved photos</h4>';
+        
+        const approvedPhotos = posts.filter(p => p.photo && !p.pendingApproval);
+        const sorted = [...approvedPhotos].sort((a,b) => b.time - a.time);
+        const totalPosts = sorted.length;
+        const totalPages = Math.ceil(totalPosts / POSTS_PER_PAGE);
+        if (currentPage > totalPages) currentPage = totalPages || 1;
+        const start = (currentPage - 1) * POSTS_PER_PAGE;
+        const end = start + POSTS_PER_PAGE;
+        const pagePosts = sorted.slice(start, end);
+        
+        if (pagePosts.length === 0) {
+            grid.innerHTML += '<p style="color:#555;">no photos yet</p>';
+        } else {
+            pagePosts.forEach(p => {
+                const div = document.createElement('div');
+                div.style.display = 'inline-block';
+                div.style.margin = '10px';
+                div.innerHTML = `<img src="${p.photo}" style="max-width:200px;max-height:200px;"><br><span style="color:#aaa;font-size:0.7em;">${escapeHtml(p.author)}</span>`;
+                grid.appendChild(div);
+            });
+        }
+        
+        const paginationContainer = document.getElementById('paginationContainer');
+        if (paginationContainer) {
+            if (totalPages > 1) {
+                paginationContainer.innerHTML = renderPagination(totalPosts, 'showPhotos');
+            } else {
+                paginationContainer.innerHTML = '';
+            }
+        }
     }
 
     async function showFiles() {
@@ -1328,53 +1476,37 @@
             `;
         }
         html += '<div id="fileList"></div>';
+        html += '<div id="paginationContainer"></div>';
         renderContent(html);
 
         if (currentUser) {
             const addFileBtn = document.getElementById('btnAddFile');
             if (addFileBtn) addFileBtn.onclick = addFile;
         }
-        renderFileList();
-        currentViewCallback = showFiles;
+        await renderFileList();
+        currentViewCallback = async () => {
+            await renderFileList();
+        };
     }
 
-    async function showUserList() {
-        const buttons = document.querySelectorAll('.menu-buttons button');
-        setActiveButton(buttons[6]);
-        
-        await loadData();
-        renderContent('<div class="user-list" id="userListContainer"></div>');
-        renderUserList();
-        currentViewCallback = showUserList;
-    }
-
-    function renderPhotoGrid() {
-        const grid = document.getElementById('photoGrid');
-        if (!grid) return;
-        grid.innerHTML = '<h4 style="color:#888;">approved photos</h4>';
-        const approvedPhotos = posts.filter(p => p.photo && !p.pendingApproval);
-        if (approvedPhotos.length === 0) {
-            grid.innerHTML += '<p style="color:#555;">no photos yet</p>';
-        } else {
-            approvedPhotos.forEach(p => {
-                const div = document.createElement('div');
-                div.style.display = 'inline-block';
-                div.style.margin = '10px';
-                div.innerHTML = `<img src="${p.photo}" style="max-width:200px;max-height:200px;"><br><span style="color:#aaa;font-size:0.7em;">${escapeHtml(p.author)}</span>`;
-                grid.appendChild(div);
-            });
-        }
-    }
-
-    function renderFileList() {
+    async function renderFileList() {
         const list = document.getElementById('fileList');
         if (!list) return;
         list.innerHTML = '<h4 style="color:#888;">files</h4>';
+        
         const filePosts = posts.filter(p => p.fileData && !p.pendingApproval && !p.photo && !p.fileName?.match(/\.(mp3|wav|ogg|m4a)$/i));
-        if (filePosts.length === 0) {
+        const sorted = [...filePosts].sort((a,b) => b.time - a.time);
+        const totalPosts = sorted.length;
+        const totalPages = Math.ceil(totalPosts / POSTS_PER_PAGE);
+        if (currentPage > totalPages) currentPage = totalPages || 1;
+        const start = (currentPage - 1) * POSTS_PER_PAGE;
+        const end = start + POSTS_PER_PAGE;
+        const pagePosts = sorted.slice(start, end);
+        
+        if (pagePosts.length === 0) {
             list.innerHTML += '<p style="color:#555;">no files yet</p>';
         } else {
-            filePosts.forEach(f => {
+            pagePosts.forEach(f => {
                 const div = document.createElement('div');
                 div.style.padding = '5px';
                 div.innerHTML = `<a href="${f.fileData}" download="${escapeHtml(f.fileName)}" style="color:#aaa;">📎 ${escapeHtml(f.fileName)}</a> <span style="color:#555;font-size:0.7em;">by ${escapeHtml(f.author)}</span>`;
@@ -1391,6 +1523,25 @@
                 list.appendChild(div);
             });
         }
+        
+        const paginationContainer = document.getElementById('paginationContainer');
+        if (paginationContainer) {
+            if (totalPages > 1) {
+                paginationContainer.innerHTML = renderPagination(totalPosts, 'showFiles');
+            } else {
+                paginationContainer.innerHTML = '';
+            }
+        }
+    }
+
+    async function showUserList() {
+        const buttons = document.querySelectorAll('.menu-buttons button');
+        setActiveButton(buttons[6]);
+        
+        await loadData();
+        renderContent('<div class="user-list" id="userListContainer"></div>');
+        renderUserList();
+        currentViewCallback = showUserList;
     }
 
     function renderUserList() {
