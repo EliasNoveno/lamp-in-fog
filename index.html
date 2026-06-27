@@ -2222,7 +2222,7 @@
             });
             
             if (res.status === 400) {
-                alert('username taken');
+                alert('username taken or password is too short!');
                 return;
             }
             if (!res.ok) {
@@ -2233,7 +2233,7 @@
             await loadData();
             authenticate(name);
         } catch(e) {
-            alert('connection error');
+            alert('connection error...!');
         }
     };
 
