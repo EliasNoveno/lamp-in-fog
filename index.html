@@ -673,15 +673,6 @@
     let currentPage = 1;
     const POSTS_PER_PAGE = 20;
 
-    // XMR Donate
-    const xmrAddress = "49hXCL4xz6hJ11mpCHXQCT11houffkg36bvyWSKhEnbEAm8wh6h9Knt43Gupt1boq9CvmnJ83vssLEn7i8AfuhLY9waDCdV";
-    
-    function copyXmrAddress() {
-        navigator.clipboard.writeText(xmrAddress);
-        floatEmoji('📋');
-        alert('XMR address copied to clipboard');
-    }
-
     function floatEmoji(text) {
         const el = document.createElement('span');
         el.className = 'float';
@@ -1047,7 +1038,6 @@
         visiblePosts = filterPostsBySearch(visiblePosts);
         const sorted = [...visiblePosts].sort((a,b) => b.time - a.time);
         
-        // Пагинация
         const totalPosts = sorted.length;
         const totalPages = Math.ceil(totalPosts / POSTS_PER_PAGE);
         if (currentPage > totalPages) currentPage = totalPages || 1;
@@ -1055,7 +1045,6 @@
         const end = start + POSTS_PER_PAGE;
         const pagePosts = sorted.slice(start, end);
         
-        // Рендерим посты
         for (const p of pagePosts) {
             const comments = await loadComments(p.id);
             const div = document.createElement('div');
@@ -1092,7 +1081,6 @@
             feed.appendChild(div);
         }
         
-        // Пагинация
         const paginationContainer = document.getElementById('paginationContainer');
         if (paginationContainer) {
             if (totalPages > 1) {
@@ -2162,16 +2150,29 @@
     }
 
     document.getElementById('btnLogout').onclick = logout;
-    
-    document.getElementById('xmrDonateBtn').addEventListener('click', copyXmrAddress);
-    
-    document.getElementById('notificationIcon').onclick = () => {
-        const panel = document.getElementById('notificationPanel');
-        panel.classList.toggle('show');
-        if (panel.classList.contains('show')) {
-            renderNotificationPanel();
-        }
-    };
+
+    // Безопасная проверка наличия элементов
+    const donateBtn = document.getElementById('xmrDonateBtn');
+    if (donateBtn) {
+        donateBtn.addEventListener('click', function() {
+            navigator.clipboard.writeText(xmrAddress);
+            floatEmoji('📋');
+            alert('XMR address copied to clipboard');
+        });
+    }
+
+    const notifIcon = document.getElementById('notificationIcon');
+    if (notifIcon) {
+        notifIcon.onclick = () => {
+            const panel = document.getElementById('notificationPanel');
+            if (panel) {
+                panel.classList.toggle('show');
+                if (panel.classList.contains('show')) {
+                    renderNotificationPanel();
+                }
+            }
+        };
+    }
     
     document.getElementById('btnLogin').onclick = async function() {
         const name = prompt('username:');
