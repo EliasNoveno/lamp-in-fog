@@ -1,6 +1,6 @@
 const express = require('express');
 const { Pool } = require('pg');
-const const bcrypt = require('bcryptjs');
+const bcrypt = require('bcryptjs');
 const https = require('https');
 const crypto = require('crypto');
 const helmet = require('helmet');
