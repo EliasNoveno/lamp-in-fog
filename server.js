@@ -500,6 +500,44 @@ setInterval(() => {
     });
 }, 10 * 60 * 1000);
 
-app.listen(PORT, () => {
-    console.log(`🌫️ Lamp in Fog running at http://localhost:${PORT}`);
+const https = require('https');
+const fs = require('fs');
+const path = require('path');
+
+// Создаем самоподписанный сертификат если его нет
+const certDir = __dirname;
+const keyPath = path.join(certDir, 'key.pem');
+const certPath = path.join(certDir, 'cert.pem');
+
+// Функция для создания сертификата (если нет)
+function ensureCertificates() {
+    if (!fs.existsSync(keyPath) || !fs.existsSync(certPath)) {
+        console.log('🔐 Generating self-signed certificate...');
+        const { execSync } = require('child_process');
+        try {
+            execSync(`openssl req -x509 -newkey rsa:4096 -keyout ${keyPath} -out ${certPath} -days 365 -nodes -subj "/CN=localhost"`, {
+                stdio: 'inherit'
+            });
+            console.log('✅ Certificate generated');
+        } catch (e) {
+            console.error('❌ Failed to generate certificate. Please install openssl.');
+            console.error('   brew install openssl');
+            process.exit(1);
+        }
+    }
+}
+
+ensureCertificates();
+
+// HTTPS сервер
+const httpsOptions = {
+    key: fs.readFileSync(keyPath),
+    cert: fs.readFileSync(certPath)
+};
+
+// Запуск HTTPS
+const PORT = process.env.PORT || 3002;
+https.createServer(httpsOptions, app).listen(PORT, () => {
+    console.log(`🌫️ Lamp in Fog running at https://localhost:${PORT}`);
+    console.log(`⚠️  Accept the security warning in your browser`);
 });
