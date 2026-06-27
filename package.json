@@ -1,7 +1,10 @@
 {
   "name": "lamp-in-fog",
   "version": "1.0.0",
-  "description": "poetry forum in the fog. those who see the darkness light the lamp.",
+  "author": "Elias Noveno",  
+  "description": "poetry forum in the fog...",
+
+}
   "main": "main.js",
  "scripts": {
   "start": "node server.js",
