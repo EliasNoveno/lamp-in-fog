@@ -683,6 +683,15 @@
     let privateMessages = [];
     let blacklists = {};
 
+    // ССЫЛКИ НА РЕЛИЗЫ GITHUB
+    const RELEASE_BASE = 'https://github.com/EliasNoveno/lamp-in-fog/releases/download/v1.0.0';
+    const DOWNLOAD_URLS = {
+        windows: RELEASE_BASE + '/Lamp.in.Fog.Windows.zip',
+        macos: RELEASE_BASE + '/Lamp.in.Fog.macOS.zip',
+        linux: RELEASE_BASE + '/Lamp.in.Fog.Linux.zip',
+        source: 'https://github.com/EliasNoveno/lamp-in-fog/archive/refs/heads/main.zip'
+    };
+
     // XMR Donate
     const xmrAddress = "49hXCL4xz6hJ11mpCHXQCT11houffkg36bvyWSKhEnbEAm8wh6h9Knt43Gupt1boq9CvmnJ83vssLEn7i8AfuhLY9waDCdV";
     
@@ -702,21 +711,19 @@
         const dropdown = document.getElementById('downloadDropdown');
         dropdown.classList.remove('show');
         
-        const downloadUrls = {
-            windows: 'https://github.com/EliasNoveno/lamp-in-fog/releases/download/v1.0.0/lamp-in-fog.Setup.exe',
-            macos: 'https://github.com/EliasNoveno/lamp-in-fog/releases/download/v1.0.0/lamp-in-fog.dmg',
-            linux: 'https://github.com/EliasNoveno/lamp-in-fog/releases/download/v1.0.0/lamp-in-fog.AppImage',
-            source: 'https://github.com/EliasNoveno/lamp-in-fog/archive/refs/heads/main.zip'
-        };
-        
-        // Показываем сообщение, если ссылки еще не настроены
-        if (os === 'windows' || os === 'macos' || os === 'linux') {
-            alert(`🚧 Download for ${os} will be available soon!\n\nYou can download the source code for now.`);
-            window.open(downloadUrls.source, '_blank');
+        let url;
+        if (os === 'windows') {
+            url = DOWNLOAD_URLS.windows;
+        } else if (os === 'macos') {
+            url = DOWNLOAD_URLS.macos;
+        } else if (os === 'linux') {
+            url = DOWNLOAD_URLS.linux;
         } else {
-            window.open(downloadUrls.source, '_blank');
+            url = DOWNLOAD_URLS.source;
         }
         
+        // Открываем ссылку для скачивания
+        window.open(url, '_blank');
         floatEmoji('⬇');
     }
 
@@ -2154,7 +2161,7 @@
 
     (async () => {
         await loadData();
-        renderContent('<p style="color:#888;">Those who see darkness light the lamp.. log in or register to start.</p>');
+        renderContent('<p style="color:#888;">Those who see darkness light the lamp. log in or register to start.</p>');
     })();
 </script>
 
