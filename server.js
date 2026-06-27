@@ -952,13 +952,15 @@ https.createServer(httpsOptions, app).listen(PORT, () => {
     console.log(`⚠️  Accept the security warning in your browser`);
 });
 
-// ===== PING SERVICE =====
-const myUrl = process.env.RENDER_EXTERNAL_URL || `https://localhost:${PORT}`;
-setInterval(() => {
-    const protocol = myUrl.startsWith('https') ? https : require('http');
-    protocol.get(myUrl, (res) => {
-        console.log(`🤍 ping: ${myUrl} answered ${res.statusCode}`);
-    }).on('error', (err) => {
-        console.log(`💔 ping error: ${err.message}`);
-    });
-}, 10 * 60 * 1000);
+// ===== PING SERVICE (ОТКЛЮЧЕН ДЛЯ ЛОКАЛЬНОЙ РАЗРАБОТКИ) =====
+if (process.env.NODE_ENV === 'production') {
+    const myUrl = process.env.RENDER_EXTERNAL_URL || `https://localhost:${PORT}`;
+    setInterval(() => {
+        const protocol = myUrl.startsWith('https') ? https : require('http');
+        protocol.get(myUrl, (res) => {
+            console.log(`🤍 ping: ${myUrl} answered ${res.statusCode}`);
+        }).on('error', (err) => {
+            console.log(`💔 ping error: ${err.message}`);
+        });
+    }, 10 * 60 * 1000);
+}
