@@ -289,8 +289,13 @@ app.post('/api/register', authLimiter, async (req, res) => {
     username = sanitize(username);
     password = sanitize(password);
     
-    if (!validateUsername(username) || !validatePassword(password)) {
-        return res.status(400).json({ error: 'Invalid username or password' });
+    // Проверяем каждое поле отдельно и даём понятную ошибку
+    if (!username || !validateUsername(username)) {
+        return res.status(400).json({ error: 'Invalid username (2-30 characters, letters, numbers, underscores, dots, hyphens)' });
+    }
+    
+    if (!password || !validatePassword(password)) {
+        return res.status(400).json({ error: 'Invalid password (minimum 8 characters, maximum 100)' });
     }
     
     try {
@@ -299,7 +304,7 @@ app.post('/api/register', authLimiter, async (req, res) => {
             [username]
         );
         if (existing.rows.length > 0) {
-            return res.status(400).json({ error: 'Username taken' });
+            return res.status(400).json({ error: 'Username already taken' });
         }
         
         const hashedPassword = await bcrypt.hash(password, 12);
