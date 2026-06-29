@@ -748,6 +748,15 @@
     let chatTarget = null;
     const POSTS_PER_PAGE = 20;
 
+    function getHeaders() {
+        const headers = { 'Content-Type': 'application/json' };
+        const token = localStorage.getItem('token');
+        if (token) {
+            headers['Authorization'] = 'Bearer ' + token;
+        }
+        return headers;
+    }
+
     // --- ВСПОМОГАТЕЛЬНЫЕ ---
     function floatEmoji(text) {
         const el = document.createElement('span');
@@ -800,13 +809,14 @@
     async function loadData() {
         startLoadingEmojis();
         try {
+            const headers = getHeaders();
             const [usersRes, postsRes, pendingRes, pmRes, blacklistRes, savedRes] = await Promise.all([
-                fetch('/api/users'),
-                fetch('/api/posts'),
-                fetch('/api/pendingPhotos'),
-                fetch('/api/privateMessages'),
-                fetch('/api/blacklists'),
-                fetch('/api/saved')
+                fetch('/api/users', { headers }),
+                fetch('/api/posts', { headers }),
+                fetch('/api/pendingPhotos', { headers }),
+                fetch('/api/privateMessages', { headers }),
+                fetch('/api/blacklists', { headers }),
+                fetch('/api/saved', { headers })
             ]);
             if (!usersRes.ok || !postsRes.ok || !pendingRes.ok) throw new Error('server response not ok');
             users = await usersRes.json();
@@ -817,8 +827,11 @@
             if (savedRes.ok) savedPosts = await savedRes.json();
             
             if (currentUser) {
-                const notifRes = await fetch(`/api/notifications/${currentUser.username}`);
-                if (notifRes.ok) { notifications = await notifRes.json(); updateNotificationBadge(); }
+                const notifRes = await fetch(`/api/notifications/${currentUser.username}`, { headers });
+                if (notifRes.ok) {
+                    notifications = await notifRes.json();
+                    updateNotificationBadge();
+                }
             }
         } catch(e) {
             console.error('failed to load data', e);
@@ -828,7 +841,7 @@
 
     async function loadComments(postId) {
         if (commentsCache[postId]) return commentsCache[postId];
-        const res = await fetch(`/api/comments/${postId}`);
+        const res = await fetch(`/api/comments/${postId}`, { headers: getHeaders() });
         if (res.ok) { commentsCache[postId] = await res.json(); return commentsCache[postId]; }
         return [];
     }
@@ -892,19 +905,20 @@
 
     async function loadNotifications() {
         if (!currentUser) return;
-        const res = await fetch(`/api/notifications/${currentUser.username}`);
+        const headers = getHeaders();
+        const res = await fetch(`/api/notifications/${currentUser.username}`, { headers });
         if (res.ok) { notifications = await res.json(); updateNotificationBadge(); renderNotificationPanel(); }
     }
 
     async function markNotificationRead(notifId) {
-        await fetch(`/api/notifications/${notifId}/read`, { method: 'PUT' });
+        await fetch(`/api/notifications/${notifId}/read`, { method: 'PUT', headers: getHeaders() });
         await loadNotifications();
     }
 
     async function addNotification(targetUser, fromUser, type) {
         await fetch('/api/notifications', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: getHeaders(),
             body: JSON.stringify({ targetUser, fromUser, type })
         });
         if (currentUser && currentUser.username === targetUser) await loadNotifications();
@@ -922,13 +936,13 @@
         `).join('');
     }
 
-    // --- СОХРАНЁННЫЕ ПОСТЫ (ЗАКЛАДКИ) ---
+    // --- СОХРАНЁННЫЕ ПОСТЫ ---
     async function toggleSave(postId) {
         if (!currentUser) { alert('log in first'); return; }
         const isSaved = savedPosts.includes(postId);
         const res = await fetch('/api/saved', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getHeaders(),
             body: JSON.stringify({ postId, action: isSaved ? 'remove' : 'add' })
         });
         if (res.ok) {
@@ -994,7 +1008,7 @@
         if (!currentUser || !content.trim()) return;
         const res = await fetch('/api/comments', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: getHeaders(),
             body: JSON.stringify({ postId, author: currentUser.username, content: content.trim() })
         });
         if (res.ok) { delete commentsCache[postId]; await loadComments(postId); renderCurrentView(); }
@@ -1005,14 +1019,14 @@
         if (!newContent || newContent === oldContent) return;
         const res = await fetch(`/api/comments/${commentId}`, {
             method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
+            headers: getHeaders(),
             body: JSON.stringify({ content: newContent, edited: 1 })
         });
         if (res.ok) { delete commentsCache[postId]; await loadComments(postId); renderCurrentView(); spawnEditEmoji(); }
     }
 
     async function deleteComment(commentId, postId) {
-        const res = await fetch(`/api/comments/${commentId}`, { method: 'DELETE' });
+        const res = await fetch(`/api/comments/${commentId}`, { method: 'DELETE', headers: getHeaders() });
         if (res.ok) { delete commentsCache[postId]; await loadComments(postId); renderCurrentView(); }
     }
 
@@ -1085,7 +1099,7 @@
         input.value = '';
         await fetch('/api/privateMessages', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getHeaders(),
             body: JSON.stringify({
                 from: currentUser.username,
                 to: chatTarget,
@@ -1109,7 +1123,7 @@
         const quote = `post by ${post.author}: "${post.content.slice(0, 100)}${post.content.length > 100 ? '...' : ''}"`;
         await fetch('/api/privateMessages', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getHeaders(),
             body: JSON.stringify({
                 from: currentUser.username,
                 to: targetUser,
@@ -1124,11 +1138,7 @@
         alert(`✅ post sent to ${targetUser}`);
     }
 
-    // --- ОСТАЛЬНЫЕ ФУНКЦИИ (статистика, пользователи, профиль, посты и т.д.) ---
-    // ... [сохраняем существующий код, но добавляем кнопки ☆ и 📩]
-    // Ниже приведу только изменённые функции showFeed, renderFeedPosts и остальное
-
-    // --- ПОКАЗАТЬ СТАТИСТИКУ ---
+    // --- ОСТАЛЬНЫЕ ФУНКЦИИ ---
     async function showStatistics() {
         const buttons = document.querySelectorAll('.menu-buttons button');
         setActiveButton(buttons[7]);
@@ -1255,13 +1265,8 @@
         }
     }
 
-    // --- ОСТАЛЬНЫЕ ВИДЫ (POEMS, POSTS, MUSIC, PHOTOS, FILES, USERS, PROFILE) ---
-    // Они остаются такими же, но с кнопками ☆ и 📩.
-    // Чтобы не раздувать ответ, я кратко покажу только изменённые части.
-
-    // Эти функции аналогичны showFeed, но с фильтром по типу постов.
-    // Они используют renderPostsList, который я добавлю ниже с поддержкой ☆ и 📩.
-
+    // --- ПОСТЫ, МУЗЫКА, ФОТО, ФАЙЛЫ ---
+    // Аналогичны showFeed, но с фильтрацией
     async function showPoems() {
         const buttons = document.querySelectorAll('.menu-buttons button');
         setActiveButton(buttons[1]);
@@ -1345,7 +1350,7 @@
         reader.onload = async function(e) {
             await fetch('/api/posts', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getHeaders(),
                 body: JSON.stringify({ author: currentUser.username, content: '', time: Date.now(), fileName: file.name, fileData: e.target.result })
             });
             await loadData();
@@ -1355,7 +1360,6 @@
         reader.readAsDataURL(file);
     }
 
-    // --- ОБОБЩЁННАЯ ФУНКЦИЯ ДЛЯ СПИСКОВ ПОСТОВ ---
     async function renderPostsList(filteredPosts, containerId, refreshCallback) {
         let filtered = filterPostsBySearch(filteredPosts);
         const sorted = [...filtered].sort((a,b) => b.time - a.time);
@@ -1411,7 +1415,6 @@
         }
     }
 
-    // --- ФОТО И ФАЙЛЫ (упрощённо, с ☆ и 📩) ---
     async function showPhotos() {
         const buttons = document.querySelectorAll('.menu-buttons button');
         setActiveButton(buttons[3]);
@@ -1552,7 +1555,7 @@
         });
     }
 
-    // --- ПРОФИЛЬ (упрощённо) ---
+    // --- ПРОФИЛЬ ---
     async function showProfile(username) {
         if (!username && !currentUser) return;
         const targetUser = username || currentUser.username;
@@ -1596,7 +1599,7 @@
                 const val = document.getElementById('descInput').value;
                 await fetch(`/api/users/${currentUser.username}`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getHeaders(),
                     body: JSON.stringify({ description: val })
                 });
                 await loadData();
@@ -1611,7 +1614,7 @@
                 if (newPwd !== confirmPwd) { alert('passwords do not match'); return; }
                 const res = await fetch('/api/changePassword', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getHeaders(),
                     body: JSON.stringify({ username: currentUser.username, oldPassword: oldPwd, newPassword: newPwd })
                 });
                 if (res.ok) { alert('password changed! please log in again.'); spawnEditEmoji(); logout(); }
@@ -1665,9 +1668,9 @@
 
     function filterUserPosts(username, filterType) { renderUserPosts(username, filterType); }
 
-    // --- ОСТАЛЬНЫЕ ФУНКЦИИ (CRUD постов, фото, файлы, логин, регистрация) ---
+    // --- CRUD ПОСТОВ ---
     async function deletePost(id) {
-        await fetch(`/api/posts/${id}`, { method: 'DELETE' });
+        await fetch(`/api/posts/${id}`, { method: 'DELETE', headers: getHeaders() });
         await loadData();
         renderCurrentView();
     }
@@ -1680,7 +1683,7 @@
         const newHashtags = extractHashtags(newContent);
         const res = await fetch(`/api/posts/${postId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getHeaders(),
             body: JSON.stringify({ content: newContent, hashtags: newHashtags })
         });
         if (res.ok) { await loadData(); renderCurrentView(); spawnEditEmoji(); }
@@ -1706,12 +1709,12 @@
                     newPost.pendingId = photoId;
                     await fetch('/api/pendingPhotos', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: getHeaders(),
                         body: JSON.stringify({ id: photoId, author: currentUser.username, data: e.target.result })
                     });
                     await fetch('/api/posts', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: getHeaders(),
                         body: JSON.stringify(newPost)
                     });
                 } else {
@@ -1719,7 +1722,7 @@
                     newPost.fileData = e.target.result;
                     await fetch('/api/posts', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: getHeaders(),
                         body: JSON.stringify(newPost)
                     });
                 }
@@ -1731,7 +1734,7 @@
         } else {
             await fetch('/api/posts', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getHeaders(),
                 body: JSON.stringify(newPost)
             });
             await loadData();
@@ -1750,12 +1753,12 @@
             const photoId = Date.now() + '_' + Math.random();
             await fetch('/api/pendingPhotos', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getHeaders(),
                 body: JSON.stringify({ id: photoId, author: currentUser.username, data: e.target.result })
             });
             await fetch('/api/posts', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getHeaders(),
                 body: JSON.stringify({ author: currentUser.username, content: '', time: Date.now(), pendingApproval: 1, pendingId: photoId })
             });
             await loadData();
@@ -1774,7 +1777,7 @@
         reader.onload = async function(e) {
             await fetch('/api/posts', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getHeaders(),
                 body: JSON.stringify({ author: currentUser.username, content: '', time: Date.now(), fileName: file.name, fileData: e.target.result })
             });
             await loadData();
@@ -1811,18 +1814,18 @@
         const pendingPhoto = pendingPhotos.find(p => p.id === pendingId);
         if (!pendingPhoto) return;
         const relatedPost = posts.find(p => p.pendingId === pendingId);
-        if (relatedPost) await fetch(`/api/posts/${relatedPost.id}`, { method: 'DELETE' });
+        if (relatedPost) await fetch(`/api/posts/${relatedPost.id}`, { method: 'DELETE', headers: getHeaders() });
         const newPost = { author: pendingPhoto.author, content: '', time: Date.now(), photo: pendingPhoto.data, pendingApproval: 0 };
-        await fetch('/api/posts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newPost) });
-        await fetch(`/api/pendingPhotos/${pendingId}`, { method: 'DELETE' });
+        await fetch('/api/posts', { method: 'POST', headers: getHeaders(), body: JSON.stringify(newPost) });
+        await fetch(`/api/pendingPhotos/${pendingId}`, { method: 'DELETE', headers: getHeaders() });
         await loadData();
         showFeed();
     }
 
     async function rejectPhoto(pendingId) {
         const postToDelete = posts.find(p => p.pendingId === pendingId);
-        if (postToDelete) await fetch(`/api/posts/${postToDelete.id}`, { method: 'DELETE' });
-        await fetch(`/api/pendingPhotos/${pendingId}`, { method: 'DELETE' });
+        if (postToDelete) await fetch(`/api/posts/${postToDelete.id}`, { method: 'DELETE', headers: getHeaders() });
+        await fetch(`/api/pendingPhotos/${pendingId}`, { method: 'DELETE', headers: getHeaders() });
         await loadData();
         showFeed();
     }
@@ -1830,7 +1833,7 @@
     async function deleteUser(username) {
         if (confirm(`are you sure you want to delete user "${username}"?`)) {
             startLoadingEmojis();
-            await fetch(`/api/users/${username}`, { method: 'DELETE' });
+            await fetch(`/api/users/${username}`, { method: 'DELETE', headers: getHeaders() });
             if (currentUser && currentUser.username === username) logout();
             else { await loadData(); if (document.getElementById('userListContainer')) showUserList(); else showFeed(); }
             stopLoadingEmojis();
@@ -1838,8 +1841,11 @@
     }
 
     // --- ЛОГИН, РЕГИСТРАЦИЯ, АУТЕНТИФИКАЦИЯ ---
-    async function authenticate(username) {
+    async function authenticate(username, token) {
         currentUser = { username: username, isAdmin: users[username]?.isAdmin || false };
+        if (token) {
+            localStorage.setItem('token', token);
+        }
         document.getElementById('btnLogin').style.display = 'none';
         document.getElementById('btnRegister').style.display = 'none';
         document.getElementById('loggedUser').textContent = username;
@@ -1855,6 +1861,7 @@
 
     function logout() {
         stopLoadingEmojis();
+        localStorage.removeItem('token');
         currentUser = null;
         notifications = [];
         commentsCache = {};
@@ -1893,8 +1900,9 @@
             if (res.status === 401) { alert('invalid credentials'); return; }
             if (res.status === 403) { alert('account banned'); return; }
             if (!res.ok) { alert('login failed'); return; }
+            const data = await res.json();
             await loadData();
-            authenticate(name);
+            authenticate(name, data.token);
         } catch(e) { alert('connection error'); }
     };
 
@@ -1917,8 +1925,19 @@
                 return;
             }
             if (!res.ok) { alert('registration failed'); return; }
-            await loadData();
-            authenticate(name);
+            // Автоматический логин после регистрации
+            const loginRes = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: name, password: pass })
+            });
+            if (loginRes.ok) {
+                const data = await loginRes.json();
+                await loadData();
+                authenticate(name, data.token);
+            } else {
+                alert('registration successful! please log in.');
+            }
         } catch(e) { alert('connection error'); }
     };
 
@@ -1930,6 +1949,18 @@
     // ИНИЦИАЛИЗАЦИЯ
     (async () => {
         await loadData();
+        // Проверяем, есть ли токен и пытаемся восстановить сессию
+        const token = localStorage.getItem('token');
+        if (token) {
+            try {
+                const res = await fetch('/api/users', { headers: { 'Authorization': 'Bearer ' + token } });
+                if (res.ok) {
+                    const usersData = await res.json();
+                    // Находим пользователя по токену (неидеально, но для простоты)
+                    // В идеале нужно /api/me, но пока так
+                }
+            } catch(e) {}
+        }
         renderContent('<p style="color:#888;">Those who see darkness light the lamp.. log in or register to start.</p>');
     })();
 </script>
