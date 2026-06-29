@@ -7,9 +7,10 @@ const rateLimit = require('express-rate-limit');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const { exec } = require('child_process');
 
 const app = express();
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 3004;
 
 // ===== БЕЗОПАСНОСТЬ =====
 app.use((req, res, next) => {
@@ -58,6 +59,27 @@ const pool = new Pool({
     max: 20,
 });
 
+// ===== ФУНКЦИЯ ДЛЯ ВЫЗОВА PYTHON-БОТА =====
+function generateBotReply(postText, botType) {
+    return new Promise((resolve) => {
+        const escaped = postText.replace(/"/g, '\\"').replace(/\n/g, ' ').slice(0, 200);
+        const cmd = `python3 bot.py "${escaped}" ${botType}`;
+        
+        exec(cmd, { timeout: 10000 }, (error, stdout, stderr) => {
+            if (error) {
+                console.error('Bot error:', error.message);
+                resolve(null);
+                return;
+            }
+            if (stderr) {
+                console.error('Bot stderr:', stderr);
+            }
+            const reply = stdout.trim();
+            resolve(reply || null);
+        });
+    });
+}
+
 // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
 const sanitize = (input) => {
     if (typeof input !== 'string') return input;
@@ -90,7 +112,6 @@ const initDb = async () => {
             )
         `);
         
-        // Добавляем колонку float_text если её нет
         await pool.query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS float_text TEXT DEFAULT ':>';
         `);
@@ -198,7 +219,6 @@ const initDb = async () => {
             )
         `);
         
-        // Создаем админа если нет
         const res = await pool.query("SELECT COUNT(*) FROM users");
         if (parseInt(res.rows[0].count) === 0) {
             const hashedPassword = await bcrypt.hash('hell_yeah', 12);
@@ -215,7 +235,7 @@ const initDb = async () => {
 
 initDb();
 
-// ===== МИДЛВЭР АУТЕНТИФИКАЦИИ =====
+// ===== АУТЕНТИФИКАЦИЯ =====
 const authenticate = async (req) => {
     const token = req.headers.authorization?.replace('Bearer ', '');
     if (!token) return null;
@@ -427,7 +447,7 @@ app.get('/api/posts', async (req, res) => {
     }
 });
 
-// Post creation
+// ==== СОЗДАНИЕ ПОСТА С ИИ-БОТОМ ====
 app.post('/api/posts', uploadLimiter, async (req, res) => {
     const session = await authenticate(req);
     if (!session) return res.status(401).json({ error: 'Unauthorized' });
@@ -459,7 +479,32 @@ app.post('/api/posts', uploadLimiter, async (req, res) => {
             [session.username, content, time || Date.now(), isPoem ? 1 : 0, 
              photo, pendingApproval ? 1 : 0, pendingId, fileName, fileData, fileType, hashtags]
         );
-        res.json({ id: result.rows[0].id });
+        
+        const postId = result.rows[0].id;
+        res.json({ id: postId });
+        
+        // ===== ИИ-БОТ (33% шанс) =====
+        if (Math.random() < 0.33 && content && content.length > 5) {
+            const botTypes = ['ghost', 'puck'];
+            const botType = botTypes[Math.floor(Math.random() * botTypes.length)];
+            const botName = botType === 'ghost' ? 'lamp_ghost' : 'hell_puck';
+            
+            setTimeout(async () => {
+                try {
+                    const reply = await generateBotReply(content, botType);
+                    if (reply && reply.length > 0 && reply.length < 500) {
+                        await pool.query(
+                            "INSERT INTO comments (postId, author, content, time) VALUES ($1, $2, $3, $4)",
+                            [postId, botName, reply, Date.now()]
+                        );
+                        console.log(`🤖 ${botName} replied to post ${postId}`);
+                    }
+                } catch (e) {
+                    console.error('Bot reply error:', e);
+                }
+            }, 2000 + Math.random() * 3000);
+        }
+        
     } catch (err) {
         console.error('Post creation error:', err);
         res.status(500).json({ error: 'Internal server error' });
@@ -878,7 +923,7 @@ app.delete('/api/users/:username', async (req, res) => {
     }
 });
 
-// ===== SAVED POSTS (ЗАКЛАДКИ) =====
+// ===== SAVED POSTS =====
 app.get('/api/saved', async (req, res) => {
     const session = await authenticate(req);
     if (!session) return res.status(401).json({ error: 'Unauthorized' });
@@ -949,7 +994,6 @@ const httpsOptions = {
     cert: fs.readFileSync(certPath)
 };
 
-// Запускаем HTTPS сервер
 https.createServer(httpsOptions, app).listen(PORT, () => {
     console.log(`🌫️ Lamp in Fog running at https://localhost:${PORT}`);
     console.log(`⚠️  Accept the security warning in your browser`);
