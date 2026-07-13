@@ -17,7 +17,7 @@ function createWindow() {
         icon: path.join(__dirname, 'icon.png')
     });
 
-    const url = 'https://localhost:3002';
+    const url = 'https://localhost:3004';
     console.log('🔗 Loading:', url);
     mainWindow.loadURL(url);
     mainWindow.setMenuBarVisibility(false);
